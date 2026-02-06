@@ -1,0 +1,2 @@
+# Runtime dependency (only one — minimal attack surface)
+httpx>=0.25.0,<1.0.0

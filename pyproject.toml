@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "defi-cli"
+version = "1.0.0"
+description = "Educational DeFi CLI — Uniswap V3 concentrated-liquidity analyzer"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "fabiotreze"}]
+keywords = ["defi", "uniswap", "liquidity", "cli", "dexscreener"]
+dependencies = [
+    "httpx>=0.25.0",
+]
+
+[project.urls]
+Repository = "https://github.com/fabiotreze/defi-cli"
+Documentation = "https://github.com/fabiotreze/defi-cli#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

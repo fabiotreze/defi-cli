@@ -1,0 +1,54 @@
+# Environment
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+defi_env/
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Reports (generated locally)
+reports/
+
+# Logs
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive
+*_private*
+*_secret*
+*_credentials*
+*_keys*
+secrets.txt
+
+# Test outputs
+.coverage
+htmlcov/
+.tox/
+
+# Eggs
+*.egg
+
+# Ruff
+.ruff_cache/
