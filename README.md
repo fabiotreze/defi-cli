@@ -3,7 +3,7 @@
 <p>
 <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-≥3.10-3776AB?logo=python&logoColor=white" alt="Python"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-<a href="https://github.com/fabiotreze/defi-cli/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
+<a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
 <a href="#donations"><img src="https://img.shields.io/badge/₿_Donate_Crypto-f7931a?logo=bitcoin&logoColor=white" alt="Donate Crypto"></a>
 </p>
 
