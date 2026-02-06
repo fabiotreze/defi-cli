@@ -60,7 +60,7 @@ class DexScreenerAPI:
     }
     
     # Priority chains for auto-detection (by volume/popularity)
-    PRIORITY_CHAINS = ['ethereum', 'arbitrum', 'polygon', 'bsc', 'base', 'optimism']
+    PRIORITY_CHAINS = ['ethereum', 'arbitrum', 'polygon', 'base', 'optimism']
     
     @classmethod
     def get_pair_url(cls, chain_id: str, pair_address: str) -> str:

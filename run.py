@@ -118,7 +118,7 @@ def cmd_info():
     print("=" * 55)
     print("🔗 Protocol   : Uniswap V3 (concentrated liquidity)")
     print("🌐 On-Chain   : Ethereum, Arbitrum, Base, Polygon, Optimism")
-    print("🌐 Pool Data  : All DEXScreener networks (BSC, Avalanche, Solana, …)")
+    print("🌐 Pool Data  : All DEXScreener networks (Avalanche, Solana, Fantom, …)")
     print("📡 Data Source : DEXScreener API (real-time, free, no key)")
     print()
     print("📁 Files:")

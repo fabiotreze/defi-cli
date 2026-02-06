@@ -44,7 +44,7 @@ $ python run.py info
 📊 DeFi CLI v1.0.0
 =======================================================
 🔗 Protocol   : Uniswap V3 (concentrated liquidity)
-🌐 Networks   : Ethereum, Arbitrum, Base, Polygon, BSC, Optimism
+🌐 Networks   : Ethereum, Arbitrum, Base, Polygon, Optimism
 📡 Data Source : DEXScreener API (real-time, free, no key)
 
 📁 Files:

@@ -26,7 +26,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - Risk classification based on range width
 
 **Supported Networks**
-- Ethereum, Arbitrum, Base, Polygon, BSC, Optimism
+- Ethereum, Arbitrum, Base, Polygon, Optimism
 
 **CLI Commands**
 - `pool <address>` — Analyze any pool via DEXScreener

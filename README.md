@@ -173,7 +173,7 @@ The CLI generates comprehensive HTML reports with real on-chain data:
 
 ### Pool Data (DEXScreener API — no key required)
 
-Supports **all DEXes** on: Ethereum, Arbitrum, Polygon, Base, Optimism, BSC, Avalanche, Fantom, Solana, Cronos, Moonbeam, Celo, Harmony, and more.
+Supports **all DEXes** on: Ethereum, Arbitrum, Polygon, Base, Optimism, Avalanche, Fantom, Solana, Cronos, Moonbeam, Celo, Harmony, and more.
 
 ### Supported Tokens
 
