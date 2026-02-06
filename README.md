@@ -242,8 +242,9 @@ Open them in any browser: `open reports/<filename>.html`
 
 | OS | Python | Status |
 |----|--------|--------|
-| macOS Sequoia (ARM64) | 3.14.2 | ✅ Passed (65/65 tests) |
-| Windows 11 (x64) | 3.11.x | ✅ Passed (65/65 tests) |
+| macOS Sequoia 15.3 (ARM64) | 3.14 | ✅ Passed |
+| Windows 11 (x64) | 3.11 | ✅ Passed |
+| Ubuntu 24.04 (x64) | 3.12 | ✅ Passed |
 
 > **Note:** Always use a virtual environment (`python -m venv`) to avoid conflicts with globally installed packages.
 
@@ -315,18 +316,18 @@ All mathematical formulas are traceable to their original sources:
 All packages are installed inside the virtual environment (`defi_env/`) — **nothing touches your system Python**.  
 To completely remove DeFi CLI and all its dependencies, simply delete the project folder:
 
-### macOS / Linux
+### macOS / Linux — exit venv (if active) and delete the folder
 
 ```bash
-deactivate                  # Exit venv (if active)
+deactivate
 cd ..
 rm -rf defi-cli/
 ```
 
-### Windows (PowerShell)
+### Windows (PowerShell) — exit venv (if active) and delete the folder
 
 ```powershell
-deactivate                  # Exit venv (if active)
+deactivate
 cd ..
 Remove-Item -Recurse -Force defi-cli\
 ```
