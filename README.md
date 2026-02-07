@@ -231,13 +231,15 @@ python -m pytest tests/ -v --tb=short      # run all 292 tests
 
 ## Uninstall
 
+**macOS / Linux**
+
 ```bash
-# macOS / Linux
 deactivate && cd .. && rm -rf defi-cli/
 ```
 
+**Windows (PowerShell)**
+
 ```powershell
-# Windows (PowerShell)
 deactivate; cd ..; Remove-Item -Recurse -Force defi-cli\
 ```
 
