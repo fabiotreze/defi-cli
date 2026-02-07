@@ -78,11 +78,11 @@ python run.py scout <PAIR> --network <NETWORK> --dex <DEX> --sort <apy|tvl|volum
 
 ### `check` · `info` · `donate`
 
-```bash
-python run.py check     # Integration tests against live pools
-python run.py info      # System info + supported DEXes
-python run.py donate    # Donation addresses
-```
+| Command | Description |
+|---------|-------------|
+| `python run.py check` | Integration tests against live pools |
+| `python run.py info` | System info + supported DEXes |
+| `python run.py donate` | Donation addresses |
 
 ---
 
@@ -201,9 +201,11 @@ Reports are **temporary by design** — opened in your browser, then discarded. 
 ## Testing
 
 ```bash
-pip install pytest                         # dev-only dependency
-python -m pytest tests/ -v --tb=short      # run all 292 tests
+pip install pytest
+python -m pytest tests/ -v --tb=short
 ```
+
+> `pytest` is a dev-only dependency. The command above runs all 292 tests.
 
 | Suite | Tests | Scope |
 |-------|-------|-------|
