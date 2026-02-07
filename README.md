@@ -232,11 +232,13 @@ python -m pytest tests/ -v --tb=short      # run all 292 tests
 ## Uninstall
 
 ```bash
-deactivate && cd .. && rm -rf defi-cli/    # macOS / Linux
+# macOS / Linux
+deactivate && cd .. && rm -rf defi-cli/
 ```
 
 ```powershell
-deactivate; cd ..; Remove-Item -Recurse -Force defi-cli\   # Windows
+# Windows (PowerShell)
+deactivate; cd ..; Remove-Item -Recurse -Force defi-cli\
 ```
 
 > **Zero residue.** Everything lives inside the project folder — nothing touches your system.
