@@ -1,14 +1,15 @@
 """
-OFFICIAL DEXSCREENER CONFIGURATION — Based on official documentation
-====================================================================
-Source: https://docs.dexscreener.com/api/reference
+Project Configuration — API endpoints, version, constants
+==========================================================
 
-Official DEXScreener API for universal DeFi pool analysis.
+Contains DEXScreener API configuration and project metadata.
+Source: https://docs.dexscreener.com/api/reference
 """
 from dataclasses import dataclass
+from types import MappingProxyType
 
 # Version
-PROJECT_VERSION = "1.0.0"
+PROJECT_VERSION = "1.1.1"
 PROJECT_NAME = "DeFi CLI"
 
 @dataclass(frozen=True)
@@ -20,18 +21,13 @@ class DexScreenerAPI:
     
     # Official endpoints
     PAIRS_ENDPOINT: str = "/latest/dex/pairs"          # For specific pools
-    SEARCH_ENDPOINT: str = "/latest/dex/search"        # General search
     TOKENS_ENDPOINT: str = "/tokens/v1"                # Token data
-    
-    # Official rate limits (from documentation)
-    PAIRS_RATE_LIMIT: int = 300   # requests/minute
-    GENERAL_RATE_LIMIT: int = 60  # requests/minute  
     
     # Recommended timeout
     TIMEOUT_SECONDS: int = 15
     
-    # Supported chains (ALL major networks)
-    SUPPORTED_CHAINS = {
+    # Supported chains (ALL major networks) — immutable mapping
+    SUPPORTED_CHAINS = MappingProxyType({
         # Ethereum & L2s
         'ethereum': 'ethereum',
         'arbitrum': 'arbitrum', 
@@ -57,7 +53,7 @@ class DexScreenerAPI:
         'ftm': 'fantom',
         'avax': 'avalanche',
         'bnb': 'bsc'
-    }
+    })
     
     # Priority chains for auto-detection (by volume/popularity)
     PRIORITY_CHAINS = ['ethereum', 'arbitrum', 'polygon', 'base', 'optimism']
@@ -68,7 +64,7 @@ class DexScreenerAPI:
         return f"{cls.BASE_URL}{cls.PAIRS_ENDPOINT}/{chain_id}/{pair_address}"
     
     @classmethod
-    def get_auto_detect_urls(cls, address: str) -> list:
+    def get_auto_detect_urls(cls, address: str) -> list[tuple[str, str]]:
         """Generate URLs for auto-detection across priority chains."""
         urls = []
         for chain in cls.PRIORITY_CHAINS:
@@ -79,38 +75,12 @@ class DexScreenerAPI:
     def get_token_search_url(cls, chain_id: str, token_address: str) -> str:
         """URL to search pools for a specific token."""
         return f"{cls.BASE_URL}/token-pairs/v1/{chain_id}/{token_address}"
-    @classmethod
-    def get_token_url(cls, chain_id: str, token_address: str) -> str:
-        """URL for specific token data."""
-        return f"{cls.BASE_URL}{cls.TOKENS_ENDPOINT}/{chain_id}/{token_address}"
-
-@dataclass(frozen=True)  
-class ComplianceInfo:
-    """Compliance information based on DEXScreener."""
-    
-    # Official data source
-    DATA_SOURCE: str = "DEX Screener"
-    DATA_SOURCE_URL: str = "https://dexscreener.com"
-    API_DOCS_URL: str = "https://docs.dexscreener.com/api/reference"
-    
-    # Official disclaimer  
-    OFFICIAL_DISCLAIMER: str = (
-        "Data provided by DEX Screener aggregates information from multiple DEXs. "
-        "Always verify data independently and understand the risks of DeFi trading."
-    )
-    
-    # Rate limits for compliance
-    RATE_LIMITS: str = (
-        "API Rate Limits: 300 req/min for pairs, 60 req/min for general endpoints. "
-        "Excessive usage may result in temporary blocks."
-    )
 
 # Unified configuration
 class DexScreenerConfig:
     """Unified configuration based on DEXScreener."""
     
     api = DexScreenerAPI()
-    compliance = ComplianceInfo()
 
 # Global instance
 config = DexScreenerConfig()

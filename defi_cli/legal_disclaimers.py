@@ -24,8 +24,8 @@ This software is provided for EDUCATIONAL and INFORMATIONAL purposes ONLY.
 BTC_DONATION = "bc1phnv47d3hq4yv8gdrnhyg502jwd9yvefyy8md5dfpnvgxwxyxl4rsdxn9yd"
 ETH_DONATION = "0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4"  # Also accepts USDC, USDT, DAI
 
-# Continue with regular disclaimer content
-"""
+# Full regulatory compliance text (assigned to a constant — not a dead string literal)
+REGULATORY_COMPLIANCE = """
 🔗 DATA SOURCE COMPLIANCE:
 • Primary data source: DEX Screener (https://dexscreener.com)
 • API documentation: https://docs.dexscreener.com/api/reference
@@ -37,22 +37,22 @@ ETH_DONATION = "0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4"  # Also accepts USDC
 ⚖️ REGULATORY COMPLIANCE:
 
 �🇸 UNITED STATES (SEC/CFTC):
-- Not a registered investment advisor under Securities Act of 1940
-- Does not constitute investment advice under Investment Advisers Act
+- Not a registered investment advisor under Investment Advisers Act of 1940
 - Educational tool exemption under Section 202(a)(11)(A)
-- Compliant with SEC guidance on crypto analysis tools
+- Does not constitute investment advice per SEC guidance
+- Not a money transmitter per FinCEN Bank Secrecy Act (BSA)
 
 🇪🇺 EUROPEAN UNION (MiCA/GDPR):
-- Compliant with Markets in Crypto-Assets (MiCA) Regulation
-- GDPR Article 6(1)(f) legitimate interest for analysis
-- Privacy by design implementation
-- Right to data portability and erasure
+- Does not provide crypto-asset services per MiCA Regulation (EU) 2023/1114 Art. 3(1)(16)
+- GDPR Regulation (EU) 2016/679 — no personal data processed (privacy by design)
+- Right to data portability and erasure — trivially satisfied (no data stored)
 
-🇧🇷 BRAZIL (ABNT/CVM):
-- Compliant with ABNT NBR ISO/IEC 27001:2022 (Information Security)
-- Aligned with CVM Resolution 175 (Investment Fund Guidelines)  
-- Data minimization per LGPD (Brazilian General Data Protection Law)
-- No investment advice provision per CVM regulations
+🇧🇷 BRAZIL (CVM/LGPD):
+- Not an investment advisor per Instrução CVM 598/2018
+- Not a fund manager per Resolução CVM 175/2022
+- LGPD Lei 13.709/2018 — data minimization (Art. 6 III), no personal data processed
+- User responsible for Receita Federal reporting per IN RFB 1888/2019
+- Not a virtual asset service provider per Lei 14.478/2022 (Bacen)
 
 🌍 GLOBAL STANDARDS:
 - OWASP security standards compliance
@@ -122,8 +122,8 @@ This is a free, open-source educational tool. If you find it valuable and wish t
 support continued development, voluntary donations are appreciated but never required.
 
 🪙 CRYPTO DONATIONS (Optional):
-• Bitcoin (BTC): [DYNAMIC_BTC_ADDRESS]
-• Ethereum & ERC-20 (ETH/USDC/USDT/DAI): [DYNAMIC_ETH_ADDRESS]
+• Bitcoin (BTC): bc1phnv47d3hq4yv8gdrnhyg502jwd9yvefyy8md5dfpnvgxwxyxl4rsdxn9yd
+• Ethereum & ERC-20 (ETH/USDC/USDT/DAI): 0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4
 
 ⚠️ COMPREHENSIVE DONATION DISCLAIMER:
 
@@ -178,11 +178,11 @@ support continued development, voluntary donations are appreciated but never req
 • Always verify addresses before sending (typos are permanent losses)
 
 Last Updated: 2026-02-06
-Version: 1.0.0
+Version: 1.1.1
 License: MIT (Software) / CC BY-SA 4.0 (Documentation)
 """
 
-# Disclaimer text for CLI - ENGLISH VERSION
+# CLI disclaimer for user acceptance prompt
 CLI_DISCLAIMER = """
 🚨 CRITICAL LEGAL WARNING 🚨
 

@@ -1,15 +1,18 @@
 """
-HTML report generator for DeFi CLI v1.0.0
-Generates comprehensive position analysis with 5 structured sessions as requested by user.
+HTML report generator for DeFi CLI v1.1.1
+Generates comprehensive position analysis with 5 structured sections.
 
 This module creates detailed HTML reports from Uniswap V3 position data,
 including risk assessment, alternative strategies, and legal disclaimers.
 """
 
 import re
+import tempfile
+import webbrowser
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
+from defi_cli.html_styles import build_css as _build_css
 
 try:
     from defi_cli.legal_disclaimers import BTC_DONATION, ETH_DONATION
@@ -18,7 +21,7 @@ except ImportError:
     ETH_DONATION = "See source code"
 
 # Constants
-REPORTS_DIR = Path("reports")
+# No persistent output directory — all reports are temporary (privacy by design)
 
 def _safe(value: Any, fallback: str = "Unknown") -> str:
     """Escape a value for safe HTML embedding (XSS prevention)."""
@@ -38,6 +41,7 @@ def _explorer(network: str) -> Dict[str, str]:
         "polygon": {"name": "PolygonScan", "base": "https://polygonscan.com"},
         "base": {"name": "BaseScan", "base": "https://basescan.org"},
         "optimism": {"name": "Optimistic Etherscan", "base": "https://optimistic.etherscan.io"},
+        "bsc": {"name": "BscScan", "base": "https://bscscan.com"},
     }
     return explorers.get(network.lower(), {"name": "Explorer", "base": "#"})
 
@@ -56,6 +60,20 @@ def _token_info(symbol: str) -> str:
         "CRV": "Curve DAO Token"
     }
     return tokens.get(symbol.upper(), symbol or "Unknown Token")
+
+def _safe_num(val: Any, decimals: int = 2, default: float = 0) -> str:
+    """Format a number with fixed decimals (no thousands separator). Use for token amounts, percentages, etc."""
+    try:
+        return f"{float(val or default):.{decimals}f}"
+    except (ValueError, TypeError):
+        return f"{default:.{decimals}f}"
+
+def _safe_usd(val: Any, decimals: int = 2, default: float = 0) -> str:
+    """Format a number as USD with thousands separator ($1,234.56). Use for all dollar values."""
+    try:
+        return f"{float(val or default):,.{decimals}f}"
+    except (ValueError, TypeError):
+        return f"{default:,.{decimals}f}"
 
 def _build_audit_trail(data: Dict) -> str:
     """
@@ -249,8 +267,129 @@ def _build_audit_trail(data: Dict) -> str:
     """
 
 
+def _render_strategies_visual(strategies_dict: Dict[str, Dict[str, Any]], data: Dict, t0: str, t1: str) -> str:
+    """Render strategies with visual gauges and comparison bars."""
+    if not strategies_dict:
+        return '<div class="tile"><p>Processing strategies...</p></div>'
+    
+    strategy_html = ""
+    colors = {
+        "conservative": {"primary": "#059669", "bg": "#dcfce7"},  
+        "moderate": {"primary": "#3b82f6", "bg": "#dbeafe"},
+        "aggressive": {"primary": "#dc2626", "bg": "#fee2e2"}
+    }
+    
+    risk_icons = {
+        "conservative": "🛡️",
+        "moderate": "⚖️", 
+        "aggressive": "🚀"
+    }
+    
+    for strategy_name in ["conservative", "moderate", "aggressive"]:
+        strategy_data = strategies_dict.get(strategy_name, {})
+        if not strategy_data:
+            continue
+            
+        color = colors[strategy_name]
+        icon = risk_icons[strategy_name]
+        apy = strategy_data.get('apr_estimate', 0) * 100
+        range_min = strategy_data.get('lower_price', 0)  
+        range_max = strategy_data.get('upper_price', 0)
+        investment = data.get('total_value_usd', 0) if data.get('total_value_usd', 0) > 0 else strategy_data.get('total_value_usd', 10000)
+        risk_level = strategy_data.get('risk_level', 'Unknown')
+        description = strategy_data.get('description', 'No description')
+        range_width = strategy_data.get('range_width_pct', 0)
+        s_t0 = _safe(strategy_data.get('token0_symbol', t0))
+        s_t1 = _safe(strategy_data.get('token1_symbol', t1))
+        daily_est = strategy_data.get('daily_fees_est', 0)
+        weekly_est = strategy_data.get('weekly_fees_est', 0)
+        monthly_est = strategy_data.get('monthly_fees_est', 0)
+        annual_est = strategy_data.get('annual_fees_est', 0)
+        
+        # Calculate gauge width based on APY (relative to max 15%)
+        gauge_width = min((apy / 15.0) * 100, 100)
+        
+        strategy_html += f'''
+        <div class="tile" style="border-left: 4px solid {color["primary"]};">
+            <div class="tile-header">
+                <div class="tile-icon" style="background: linear-gradient(135deg, {color["primary"]}, {color["primary"]}cc);">{icon}</div>
+                <div>
+                    <div class="tile-title">{strategy_name.title()} Strategy</div>
+                    <div style="font-size: 0.875rem; color: var(--text-light);">{description}</div>
+                </div>
+            </div>
+            
+            <!-- Price Range with min/max descriptions -->
+            <div style="background: {color["bg"]}; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; align-items: center;">
+                    <div style="text-align: left;">
+                        <div style="font-size: 0.7rem; color: var(--text-light); text-transform: uppercase;">Min Price</div>
+                        <div style="font-weight: 700; color: #ef4444;">${_safe_usd(range_min, 2)}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Below → 100% {s_t0}</div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.8rem; color: var(--text-light);">
+                        ±{range_width:.0f}%
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.7rem; color: var(--text-light); text-transform: uppercase;">Max Price</div>
+                        <div style="font-weight: 700; color: #16a34a;">${_safe_usd(range_max, 2)}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Above → 100% {s_t1}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0.5rem 0;">
+                <div>
+                    <div style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 0.25rem;">Investment</div>
+                    <div style="font-weight: 600; color: var(--text);">${_safe_usd(investment, 0)}</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 0.25rem;">Capital Efficiency</div>
+                    <div style="font-weight: 600; color: var(--text);">{strategy_data.get("capital_efficiency", 0):.1f}× vs V2</div>
+                </div>
+            </div>
+            
+            <div style="margin: 1rem 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="font-size: 0.875rem; color: var(--text-light);">Estimated APY</span>
+                    <span style="font-weight: 600; color: {color["primary"]};">{apy:.1f}%</span>
+                </div>
+                <div class="strategy-gauge">
+                    <div class="gauge-fill" data-width="{gauge_width}" style="background: linear-gradient(135deg, {color["primary"]}, {color["primary"]}dd);"></div>
+                    <div class="gauge-label">{risk_level} Risk</div>
+                </div>
+            </div>
+            
+            <!-- Earnings Projections -->
+            <div style="background: #f8fafc; padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">
+                <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 0.5rem;">Projected Earnings</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; text-align: center;">
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Daily</div>
+                        <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${_safe_usd(daily_est, 2)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Weekly</div>
+                        <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${_safe_usd(weekly_est, 2)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Monthly</div>
+                        <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${_safe_usd(monthly_est, 2)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Annual</div>
+                        <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${_safe_usd(annual_est, 2)}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        '''
+    
+    return strategy_html
+
+
 def _build_html(data: Dict) -> str:
-    """Build HTML with 5 structured sessions as requested by user."""
+    """Build HTML with 5 structured sections."""
     
     # Basic data extraction
     t0 = _safe(data.get("token0_symbol", "Token0"))
@@ -262,20 +401,17 @@ def _build_html(data: Dict) -> str:
     generated = _safe(data.get("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     net = _safe((data.get("network") or "arbitrum").title())
     
-    # Helper for safe number formatting
-    def safe_num(val, decimals=2, default=0):
-        """Format a number with fixed decimals (no thousands separator). Use for token amounts, percentages, etc."""
-        try:
-            return f"{float(val or default):.{decimals}f}"
-        except (ValueError, TypeError):
-            return f"{default:.{decimals}f}"
+    # Local aliases for readability in f-string templates
+    safe_num = _safe_num
+    safe_usd = _safe_usd
 
-    def safe_usd(val, decimals=2, default=0):
-        """Format a number as USD with thousands separator ($1,234.56). Use for all dollar values."""
-        try:
-            return f"{float(val or default):,.{decimals}f}"
-        except (ValueError, TypeError):
-            return f"{default:,.{decimals}f}"
+    # Extract HODL comparison dict for safe use in f-string templates
+    hodl = data.get("hodl_comparison") or {}
+    hodl_il_lower_usd = hodl.get("il_if_at_lower_usd", 0)
+    hodl_il_upper_usd = hodl.get("il_if_at_upper_usd", 0)
+    hodl_fees_usd = hodl.get("fees_earned_usd", 0)
+    hodl_net_lower = hodl.get("net_if_at_lower_usd", 0) or 0
+    hodl_net_upper = hodl.get("net_if_at_upper_usd", 0) or 0
     
     # Status formatting
     status_text_color = "#15803d" if in_range else "#dc2626"
@@ -309,129 +445,8 @@ def _build_html(data: Dict) -> str:
 
     strategies_html = "".join(strategies) if strategies else "<p>Loading strategy data...</p>"
     
-    # Generate strategies section with visual elements
-    def _render_strategies_visual(strategies_dict):
-        """Render strategies with visual gauges and comparison bars."""
-        if not strategies_dict:
-            return '<div class="tile"><p>Processing strategies...</p></div>'
-        
-        strategy_html = ""
-        colors = {
-            "conservative": {"primary": "#059669", "bg": "#dcfce7"},  
-            "moderate": {"primary": "#3b82f6", "bg": "#dbeafe"},
-            "aggressive": {"primary": "#dc2626", "bg": "#fee2e2"}
-        }
-        
-        risk_icons = {
-            "conservative": "🛡️",
-            "moderate": "⚖️", 
-            "aggressive": "🚀"
-        }
-        
-        for strategy_name in ["conservative", "moderate", "aggressive"]:
-            strategy_data = strategies_dict.get(strategy_name, {})
-            if not strategy_data:
-                continue
-                
-            color = colors[strategy_name]
-            icon = risk_icons[strategy_name]
-            apy = strategy_data.get('apr_estimate', 0) * 100
-            range_min = strategy_data.get('lower_price', 0)  
-            range_max = strategy_data.get('upper_price', 0)
-            investment = data.get('total_value_usd', 0) if data.get('total_value_usd', 0) > 0 else strategy_data.get('total_value_usd', 10000)
-            risk_level = strategy_data.get('risk_level', 'Unknown')
-            description = strategy_data.get('description', 'No description')
-            range_width = strategy_data.get('range_width_pct', 0)
-            s_t0 = _safe(strategy_data.get('token0_symbol', t0))
-            s_t1 = _safe(strategy_data.get('token1_symbol', t1))
-            daily_est = strategy_data.get('daily_fees_est', 0)
-            weekly_est = strategy_data.get('weekly_fees_est', 0)
-            monthly_est = strategy_data.get('monthly_fees_est', 0)
-            annual_est = strategy_data.get('annual_fees_est', 0)
-            
-            # Calculate gauge width based on APY (relative to max 15%)
-            gauge_width = min((apy / 15.0) * 100, 100)
-            
-            strategy_html += f'''
-            <div class="tile" style="border-left: 4px solid {color["primary"]};">
-                <div class="tile-header">
-                    <div class="tile-icon" style="background: linear-gradient(135deg, {color["primary"]}, {color["primary"]}cc);">{icon}</div>
-                    <div>
-                        <div class="tile-title">{strategy_name.title()} Strategy</div>
-                        <div style="font-size: 0.875rem; color: var(--text-light);">{description}</div>
-                    </div>
-                </div>
-                
-                <!-- Price Range with min/max descriptions -->
-                <div style="background: {color["bg"]}; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-                    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; align-items: center;">
-                        <div style="text-align: left;">
-                            <div style="font-size: 0.7rem; color: var(--text-light); text-transform: uppercase;">Min Price</div>
-                            <div style="font-weight: 700; color: #ef4444;">${safe_usd(range_min, 2)}</div>
-                            <div style="font-size: 0.7rem; color: var(--text-light);">Below → 100% {s_t0}</div>
-                        </div>
-                        <div style="text-align: center; font-size: 0.8rem; color: var(--text-light);">
-                            ±{range_width:.0f}%
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 0.7rem; color: var(--text-light); text-transform: uppercase;">Max Price</div>
-                            <div style="font-weight: 700; color: #16a34a;">${safe_usd(range_max, 2)}</div>
-                            <div style="font-size: 0.7rem; color: var(--text-light);">Above → 100% {s_t1}</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0.5rem 0;">
-                    <div>
-                        <div style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 0.25rem;">Investment</div>
-                        <div style="font-weight: 600; color: var(--text);">${safe_usd(investment, 0)}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 0.25rem;">Capital Efficiency</div>
-                        <div style="font-weight: 600; color: var(--text);">{strategy_data.get("capital_efficiency", 0):.1f}× vs V2</div>
-                    </div>
-                </div>
-                
-                <div style="margin: 1rem 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <span style="font-size: 0.875rem; color: var(--text-light);">Estimated APY</span>
-                        <span style="font-weight: 600; color: {color["primary"]};">{apy:.1f}%</span>
-                    </div>
-                    <div class="strategy-gauge">
-                        <div class="gauge-fill" data-width="{gauge_width}" style="background: linear-gradient(135deg, {color["primary"]}, {color["primary"]}dd);"></div>
-                        <div class="gauge-label">{risk_level} Risk</div>
-                    </div>
-                </div>
-                
-                <!-- Earnings Projections -->
-                <div style="background: #f8fafc; padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">
-                    <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 0.5rem;">Projected Earnings</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; text-align: center;">
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-light);">Daily</div>
-                            <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${safe_usd(daily_est, 2)}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-light);">Weekly</div>
-                            <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${safe_usd(weekly_est, 2)}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-light);">Monthly</div>
-                            <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${safe_usd(monthly_est, 2)}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-light);">Annual</div>
-                            <div style="font-weight: 600; color: {color["primary"]}; font-size: 0.9rem;">${safe_usd(annual_est, 2)}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            '''
-        
-        return strategy_html
-
     # Generate visual strategies HTML
-    strategies_visual_html = _render_strategies_visual(data.get("strategies", {}))
+    strategies_visual_html = _render_strategies_visual(data.get("strategies", {}), data, t0, t1)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -440,297 +455,7 @@ def _build_html(data: Dict) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">
     <title>Position Report: {t0}/{t1} — DeFi CLI</title>
-    <style>
-        :root {{
-            --primary: #2563eb;
-            --success: #16a34a; 
-            --warning: #d97706;
-            --danger: #dc2626;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --border: #e2e8f0;
-            --text: #1e293b;
-            --text-light: #64748b;
-        }}
-        
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-        }}
-        
-        .container {{
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-        }}
-        
-        .header {{
-            background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
-            color: white;
-            padding: 2rem;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            text-align: center;
-        }}
-        
-        .session {{
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }}
-        
-        .session-title {{
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 1rem;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 0.5rem;
-        }}
-        
-        .metric-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin: 1rem 0;
-        }}
-        
-        .metric-card {{
-            padding: 1rem;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: #fafbfc;
-            position: relative;
-            overflow: hidden;
-        }}
-        
-        .metric-value {{
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--primary);
-        }}
-        
-        .price-range-bar {{
-            position: relative;
-            width: 100%;
-            height: 8px;
-            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #22c55e 100%);
-            border-radius: 4px;
-            margin: 1rem 0;
-        }}
-        
-        .current-price-indicator {{
-            position: absolute;
-            top: -4px;
-            width: 16px;
-            height: 16px;
-            background: white;
-            border: 3px solid var(--primary);
-            border-radius: 50%;
-            transform: translateX(-50%);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }}
-        
-        .range-labels {{
-            display: flex;
-            justify-content: space-between;
-            margin-top: 0.5rem;
-            font-size: 0.75rem;
-            color: var(--text-light);
-        }}
-        
-        .strategy-gauge {{
-            position: relative;
-            width: 100%;
-            height: 80px;
-            background: #f1f5f9;
-            border-radius: 8px;
-            overflow: hidden;
-            margin: 0.5rem 0;
-        }}
-        
-        .gauge-fill {{
-            height: 100%;
-            background: linear-gradient(135deg, var(--primary), #3b82f6);
-            transition: width 0.3s ease;
-            border-radius: 8px;
-        }}
-        
-        .gauge-label {{
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-weight: 600;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }}
-        
-        .tile {{
-            background: linear-gradient(135deg, white 0%, #f8fafc 100%);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            transition: all 0.2s ease;
-        }}
-        
-        .tile:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }}
-        
-        .tile-header {{
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-        }}
-        
-        .tile-icon {{
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary), #3b82f6);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            margin-right: 1rem;
-            font-size: 1.25rem;
-        }}
-        
-        .tile-title {{
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text);
-        }}
-        
-        .progress-bar {{
-            width: 100%;
-            height: 6px;
-            background: #e2e8f0;
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 0.5rem 0;
-        }}
-        
-        .progress-fill {{
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary), #3b82f6);
-            border-radius: 3px;
-            transition: width 0.5s ease;
-        }}
-        
-        .status-indicator {{
-            display: inline-flex;
-            align-items: center;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin: 0.5rem 0;
-        }}
-        
-        .status-in-range {{
-            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-            color: #15803d;
-            border: 1px solid #86efac;
-        }}
-        
-        .status-out-range {{
-            background: linear-gradient(135deg, #fef2f2, #fecaca);
-            color: #dc2626;
-            border: 1px solid #fca5a5;
-        }}
-        
-        .apy-display {{
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border: 1px solid #facc15;
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-            margin: 1rem 0;
-        }}
-        
-        .apy-value {{
-            font-size: 2rem;
-            font-weight: 700;
-            color: #d97706;
-        }}
-        
-        .comparison-bars {{
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin: 1rem 0;
-        }}
-        
-        .comparison-item {{
-            text-align: center;
-            padding: 1rem;
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }}
-        
-        .comparison-value {{
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0.5rem 0;
-        }}
-        
-        .comparison-label {{
-            font-size: 0.875rem;
-            color: var(--text-light);
-        }}
-        
-        .strategy-card {{
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-            background: #f8fafc;
-        }}
-        
-        .strategy-details div {{
-            margin: 0.5rem 0;
-        }}
-        
-        .status-badge {{
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            background: {status_bg};
-            border: 1px solid {status_border};
-            color: {status_text_color};
-        }}
-        
-        .footer {{
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-light);
-            border-top: 1px solid var(--border);
-            margin-top: 2rem;
-        }}
-        
-        .consent-info {{
-            background: linear-gradient(135deg, #fefce8, #fef9c3);
-            border: 3px solid #f59e0b;
-            border-radius: 12px;
-            padding: 1.25rem;
-            margin: 1.5rem 0;
-            font-size: 0.95rem;
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
-        }}
-    </style>
+{_build_css(status_bg, status_border, status_text_color)}
     
     <script>
         // Calculate price position percentage for visual indicators
@@ -776,13 +501,24 @@ def _build_html(data: Dict) -> str:
             <h1>🏛️ DeFi CLI — Position Analysis</h1>
             <h2>{t0}/{t1} · {net}</h2>
             <div class="status-badge">{status_text}</div>
+            <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-light);">
+                {data.get('dex_name', 'Uniswap V3')} · {data.get('protocol_version', 'v3').upper()} · Concentrated Liquidity
+            </div>
+        </div>
+
+        <!-- ═══════════════════ FINANCIAL DATA NOTICE ═══════════════════ -->
+        <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 12px; padding: 1rem 1.25rem; margin: 0 0 1.5rem 0; font-size: 0.9rem; color: #78350f;">
+            <strong>⚠️ FINANCIAL DATA NOTICE:</strong> This report contains position values, fee estimates, and financial projections.
+            It is generated as a <strong>temporary file</strong> and will not be saved automatically.
+            To keep a copy, use <strong>Ctrl+S</strong> (or ⌘+S) in your browser.
+            <strong>This is NOT financial advice — educational analysis only.</strong>
         </div>
 
         <!-- ═══════════════════ SESSION 1: YOUR POSITION ═══════════════════ -->
         <div class="session">
             <h2 class="session-title">📊 Session 1: Your Position</h2>
             
-            {'<div style="background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>🔗 Data Source:</strong> Real on-chain data via Arbitrum RPC · Position NFT #{}</div>'.format(data.get('position_id', '')) if data.get('data_source') == 'on-chain' else '<div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>⚠️ Data Source:</strong> Simulated position ($10K capital). Use <code>--position &lt;id&gt;</code> for real data.</div>'}
+            {'<div style="background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>🔗 Data Source:</strong> Real on-chain data via {} RPC · {} · Position NFT #{}</div>'.format(data.get('network', 'Arbitrum').title(), data.get('dex_name', 'Uniswap V3'), data.get('position_id', '')) if data.get('data_source') == 'on-chain' else '<div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>⚠️ Data Source:</strong> Simulated position ($10K capital). Use <code>--position &lt;id&gt;</code> for real data.</div>'}
 
             <!-- Position Value Card -->
             <div class="tile" style="border-left: 4px solid var(--primary);">
@@ -828,6 +564,7 @@ def _build_html(data: Dict) -> str:
                     </div>
                 </div>
                 <div class="comparison-value" style="color: #16a34a; font-size: 1.5rem;">${safe_usd(data.get('fees_earned_usd', 0), 2)}</div>
+                <div style="font-size: 0.75rem; color: #92400e; margin-top: 0.25rem;">⚠️ On-chain fees have ±2-5% variance until actual collection (feeGrowth rounding + block timing)</div>
             </div>
 
             <!-- Earnings Projections Card -->
@@ -947,6 +684,29 @@ def _build_html(data: Dict) -> str:
                     <div class="comparison-label">Volume × Fee Tier ({data.get('fee_tier_label', '0.05%')})</div>
                 </div>
             </div>
+
+            <!-- Vol/TVL Ratio Tile -->
+            <div class="tile" style="border-left: 4px solid #7c3aed;">
+                <div class="tile-header">
+                    <div class="tile-icon" style="background: linear-gradient(135deg, #7c3aed, #5b21b6);">⚡</div>
+                    <div>
+                        <div class="tile-title">Volume / TVL Ratio</div>
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Fee-generating efficiency — higher = more fees per dollar locked</div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.5rem;">
+                    <div style="font-size: 2rem; font-weight: 700; color: #7c3aed;">{safe_num(data.get('vol_tvl_ratio', 0), 4)}×</div>
+                    <div style="font-size: 0.875rem; color: var(--text-light);">
+                        {'🔥 High efficiency' if (data.get('vol_tvl_ratio') or 0) >= 0.3 else '⚖️ Normal' if (data.get('vol_tvl_ratio') or 0) >= 0.1 else '💤 Low activity'}
+                    </div>
+                </div>
+                <div class="progress-bar" style="margin-top: 0.5rem; height: 8px;">
+                    <div class="progress-fill" data-width="{min((data.get('vol_tvl_ratio', 0) or 0) / 0.5 * 100, 100):.0f}" style="background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
+                    Benchmarks: &lt;0.1× low · 0.1-0.3× normal · &gt;0.3× high efficiency
+                </div>
+            </div>
             
             <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.875rem;">
                 <strong>📋 Data Pipeline:</strong>
@@ -996,11 +756,80 @@ def _build_html(data: Dict) -> str:
                 
                 <div style="background: #f8fafc; padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.8rem; color: var(--text-light);">
                     <strong>📐 Range Analysis:</strong>
+                    Range width: <strong>{safe_num(data.get('range_width_pct', 0), 1)}%</strong> of current price · 
                     Downside buffer: {safe_num(data.get('downside_buffer_pct', 0), 1)}% · 
                     Upside buffer: {safe_num(data.get('upside_buffer_pct', 0), 1)}% · 
-                    Range width: ${safe_usd(data.get('range_max', 0) - data.get('range_min', 0), 2)} · 
                     Strategy: <strong>{_safe(data.get('current_strategy', 'moderate')).title()}</strong> · 
                     Source: <a href="https://uniswap.org/whitepaper-v3.pdf" style="color: var(--primary);">Whitepaper §6.1 (Tick-Price)</a>
+                </div>
+            </div>
+
+            <!-- V3 Impermanent Loss Tile -->
+            <div class="tile" style="border-left: 4px solid #ef4444;">
+                <div class="tile-header">
+                    <div class="tile-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">📉</div>
+                    <div>
+                        <div class="tile-title">V3 Impermanent Loss Estimate</div>
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Worst-case IL if price moves to range boundaries · V3 IL = V2 IL × Capital Efficiency</div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
+                        <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">If Price → Lower Bound</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #dc2626;">{safe_num(data.get('il_at_lower_v3_pct', 0), 1)}%</div>
+                        <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">V2 equivalent: {safe_num(data.get('il_at_lower_v2_pct', 0), 1)}%</div>
+                        <div style="font-size: 0.8rem; color: #991b1b; margin-top: 0.25rem;">${safe_usd(hodl_il_lower_usd)}</div>
+                    </div>
+                    <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
+                        <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">If Price → Upper Bound</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #dc2626;">{safe_num(data.get('il_at_upper_v3_pct', 0), 1)}%</div>
+                        <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">V2 equivalent: {safe_num(data.get('il_at_upper_v2_pct', 0), 1)}%</div>
+                        <div style="font-size: 0.8rem; color: #991b1b; margin-top: 0.25rem;">${safe_usd(hodl_il_upper_usd)}</div>
+                    </div>
+                </div>
+                
+                <div style="background: #fff7ed; padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem; font-size: 0.8rem; color: #9a3412; border: 1px solid #fed7aa;">
+                    <strong>📐 V3 IL Formula:</strong> IL_v3 = IL_v2 × Capital Efficiency ({safe_num(data.get('capital_efficiency_vs_v2', 1), 1)}×). 
+                    Concentrated liquidity amplifies both fees AND losses. 
+                    <a href="https://pintail.medium.com/uniswap-a-good-deal-for-liquidity-providers-104c0b6816f2" style="color: #9a3412;">Pintail IL Formula</a> · 
+                    <a href="https://uniswap.org/whitepaper-v3.pdf" style="color: #9a3412;">Whitepaper §2</a>
+                </div>
+            </div>
+
+            <!-- HODL Comparison Tile -->
+            <div class="tile" style="border-left: 4px solid #8b5cf6;">
+                <div class="tile-header">
+                    <div class="tile-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">⚖️</div>
+                    <div>
+                        <div class="tile-title">Fees vs IL — HODL Comparison</div>
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Are fees earned enough to offset impermanent loss?</div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div style="background: #f0fdf4; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #bbf7d0;">
+                        <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase;">Fees Earned</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #16a34a;">+${safe_usd(hodl_fees_usd)}</div>
+                    </div>
+                    <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
+                        <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase;">Net if at Lower</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: {'#16a34a' if hodl_net_lower >= 0 else '#dc2626'};">${safe_usd(hodl_net_lower)}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Fees + IL at lower bound</div>
+                    </div>
+                    <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
+                        <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase;">Net if at Upper</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: {'#16a34a' if hodl_net_upper >= 0 else '#dc2626'};">${safe_usd(hodl_net_upper)}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-light);">Fees + IL at upper bound</div>
+                    </div>
+                </div>
+                
+                <div style="background: #eff6ff; padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem; font-size: 0.8rem; color: #1e40af; border: 1px solid #bfdbfe;">
+                    <strong>💡 Reading this:</strong> 
+                    Positive net = fees exceed IL → LP is profitable vs HODL.
+                    Negative net = IL exceeds fees → HODL would have been better.
+                    This is a <strong>snapshot estimate</strong> — for real historical PnL, use 
+                    <a href="https://revert.finance/#/account/{_safe(data.get('wallet_address', ''))}" style="color: #1d4ed8;">Revert.finance</a>.
                 </div>
             </div>
             
@@ -1095,6 +924,8 @@ def _build_html(data: Dict) -> str:
                         <tr style="background: #f0f6ff;"><td style="padding: 5px 8px;">USD prices (ETH, tokens)</td><td style="padding: 5px 8px;">DEXScreener + on-chain</td><td style="padding: 5px 8px;">API <code>priceUsd</code> + sqrtPriceX96 derivation</td></tr>
                         <tr><td style="padding: 5px 8px;">Math formulas</td><td style="padding: 5px 8px;">Uniswap V3 Whitepaper</td><td style="padding: 5px 8px;">§2 Concentrated Liquidity, §6.1-6.3 Tick Math</td></tr>
                         <tr style="background: #f0f6ff;"><td style="padding: 5px 8px;">IL formula</td><td style="padding: 5px 8px;">Pintail (2019) + Whitepaper §2</td><td style="padding: 5px 8px;"><code>2√r/(1+r) - 1</code> × capital efficiency</td></tr>
+                        <tr><td style="padding: 5px 8px;">V3 IL amplification</td><td style="padding: 5px 8px;">Whitepaper §2 + Pintail</td><td style="padding: 5px 8px;"><code>IL_v3 = IL_v2 × CE</code> (concentrated range)</td></tr>
+                        <tr style="background: #f0f6ff;"><td style="padding: 5px 8px;">Pool comparison / APY</td><td style="padding: 5px 8px;">DefiLlama Yields API</td><td style="padding: 5px 8px;"><code>GET https://yields.llama.fi/pools</code> (free, no key)</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1223,6 +1054,17 @@ def _build_html(data: Dict) -> str:
                         </ul>
                     </li>
                     <li><strong>Fee Computation:</strong> Following <a href="https://docs.uniswap.org/contracts/v3/reference/core/libraries/Tick" target="_blank">Tick library</a> — uncollected = (feeGrowthGlobal − feeGrowthOutside − feeGrowthInside) × liquidity / 2¹²⁸</li>
+                </ul>
+                
+                <h4>🦎 DefiLlama Yields API (Pool Scout / Cross-DEX Comparison)</h4>
+                <ul style="margin: 0.5rem 0; font-size: 0.875rem;">
+                    <li><strong>Endpoint:</strong> <code>https://yields.llama.fi/pools</code></li>
+                    <li><strong>Rate Limit:</strong> ~30 requests/min (free, no API key required)</li>
+                    <li><strong>Authentication:</strong> Public (100% free)</li>
+                    <li><strong>Coverage:</strong> 20,000+ pools across all major DEXes and chains</li>
+                    <li><strong>Data Used:</strong> <code>apy</code>, <code>apyBase</code>, <code>tvlUsd</code>, <code>volumeUsd1d</code>, <code>apyMean30d</code>, <code>ilRisk</code></li>
+                    <li><strong>Purpose:</strong> Pool Scout — compare your pool against alternatives across DEXes/chains</li>
+                    <li><strong>Documentation:</strong> <a href="https://defillama.com/docs/api" target="_blank">defillama.com/docs/api</a></li>
                 </ul>
                 
                 <h4>🦄 Uniswap V3 Core — Mathematical References</h4>
@@ -1377,8 +1219,8 @@ def _build_html(data: Dict) -> str:
                 <h4 style="color: #15803d;">💡 Scientific Research</h4>
                 <div class="metric-grid" style="gap: 0.5rem;">
                     <div>• <a href="https://pintail.medium.com/uniswap-a-good-deal-for-liquidity-providers-104c0b6816f2" target="_blank" style="color: #2563eb;">Pintail Research - Impermanent Loss</a></div>
-                    <div>• <a href="https://web.archive.org/web/20230000000000*/uniswapv3book.com" target="_blank" style="color: #2563eb;">Uniswap V3 Development Book</a></div>
-                    <div>• <a href="https://arxiv.org/search/?query=automated+market+makers" target="_blank" style="color: #2563eb;">Academic Papers on AMMs</a></div>
+                    <div>• <a href="https://uniswapv3book.com" target="_blank" style="color: #2563eb;">Uniswap V3 Development Book</a></div>
+                    <div>• <a href="https://arxiv.org/abs/2103.14769" target="_blank" style="color: #2563eb;">Replicating Market Makers (Angeris et al., 2021)</a></div>
                 </div>
             </div>
             
@@ -1411,8 +1253,8 @@ def _build_html(data: Dict) -> str:
 
         <!-- ═══════════════════ FOOTER ═══════════════════ -->
         <div class="footer">
-            <p><strong>DeFi CLI v1.0.0</strong> · Report generated on {generated}</p>
-            <p>Sources: Uniswap V3 Whitepaper, DEXScreener API</p>
+            <p><strong>DeFi CLI v1.1.1</strong> · Report generated on {generated}</p>
+            <p>Sources: Uniswap V3 Whitepaper, DEXScreener API, DefiLlama Yields API</p>
             <p style="font-size: 0.875rem; color: var(--text-light);">
                 This report was generated for educational purposes. Always verify data independently.
             </p>
@@ -1422,31 +1264,40 @@ def _build_html(data: Dict) -> str:
 </html>"""
 
 
-def generate_position_report(data: Dict, output_dir: Optional[Path] = None) -> Path:
-    """Generate HTML report from position analysis data."""
-    if output_dir is None:
-        output_dir = REPORTS_DIR
-    output_dir = Path(output_dir)
-    output_dir.mkdir(exist_ok=True)
+def generate_position_report(data: Dict[str, Any],
+                             _open_browser: bool = True) -> Path:
+    """Generate HTML report as a temporary file and open in browser.
     
-    # Generate filename
+    The report is created as a temporary file — nothing is persisted unless
+    the user explicitly saves from the browser (Ctrl+S / ⌘+S).
+    
+    Privacy: no cookies, no saved files, no retained data.
+    ⚠️ Reports contain financial data — a disclaimer banner is always shown.
+    """
+    html_content = _build_html(data)
+
+    # Generate filename parts
     t0 = _safe_filename(data.get("token0_symbol", "TOKEN0"))
     t1 = _safe_filename(data.get("token1_symbol", "TOKEN1"))
     network = _safe_filename(data.get("network", "ethereum"))
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{t0}_{t1}_{network}_{timestamp}.html"
-    
-    filepath = output_dir / filename
-    html_content = _build_html(data)
-    
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(html_content)
-    
+
+    # Temporary file — persists in OS temp dir until session/reboot
+    tmp = tempfile.NamedTemporaryFile(
+        mode='w', suffix=f'_{filename}', prefix='defi_cli_',
+        dir=tempfile.gettempdir(), delete=False, encoding='utf-8',
+    )
+    tmp.write(html_content)
+    tmp.close()
+    filepath = Path(tmp.name)
+    if _open_browser:
+        webbrowser.open(f"file://{filepath.resolve()}")
     return filepath
 
 
 # Test function for CLI usage
-def main():
+def main() -> None:
     """Test function: generate a sample report from a live pool.
 
     Usage:
@@ -1457,14 +1308,14 @@ def main():
     from real_defi_math import PositionData, analyze_position
     from defi_cli.dexscreener_client import analyze_pool_real
 
-    address = sys.argv[1] if len(sys.argv) > 1 else None
-    if not address:
+    pool = sys.argv[1] if len(sys.argv) > 1 else None
+    if not pool:
         print("Usage: python html_generator.py <pool_address>")
         sys.exit(1)
 
-    async def _generate():
-        print(f"Fetching pool data for {address[:16]}...")
-        result = await analyze_pool_real(address)
+    async def _generate() -> None:
+        print(f"Fetching pool data for {pool[:16]}...")
+        result = await analyze_pool_real(pool)
         if result["status"] != "success":
             print(f"❌ {result['message']}")
             return

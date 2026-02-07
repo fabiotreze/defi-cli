@@ -38,189 +38,71 @@ Price Formulas (Uniswap V3 Whitepaper):
 """
 
 import asyncio
-import httpx
-from typing import Dict
+from typing import Any, Dict
+
+from defi_cli.rpc_helpers import (
+    # Constants
+    Q96, Q128, Q256, SYMBOL_MAP, ABI_WORD_HEX,
+    # Shared definitions (single source of truth)
+    RPC_URLS, SELECTORS,
+    # Encoding
+    encode_uint256 as _encode_uint256,
+    encode_address as _encode_address,
+    encode_uint24 as _encode_uint24,
+    encode_int24 as _encode_int24,
+    # Decoding
+    decode_uint as _decode_uint,
+    decode_int as _decode_int,
+    decode_address as _decode_address,
+    decode_string as _decode_string,
+    # RPC
+    eth_call as _eth_call,
+    eth_call_batch as _eth_call_batch,
+    eth_block_number as _eth_block_number,
+    # Symbol normalization
+    normalize_symbol as _normalize_symbol,
+)
+from defi_cli.stablecoins import is_stablecoin, stablecoin_side
 
 
-# ── Public RPC Endpoints (no API key) ────────────────────────────────────
+# RPC_URLS and SELECTORS are imported from defi_cli.rpc_helpers (single source of truth).
 
-RPC_URLS = {
-    "arbitrum": "https://arb1.arbitrum.io/rpc",
-    "ethereum": "https://eth.llamarpc.com",
-    "polygon": "https://polygon-rpc.com",
-    "base": "https://mainnet.base.org",
-    "optimism": "https://mainnet.optimism.io",
-}
+# ── DEX Registry (multi-DEX support) ────────────────────────────────────
+try:
+    from defi_cli.dex_registry import (
+        get_position_manager_address, get_factory_address,
+        get_dex_display_name, get_dex_icon,
+    )
+    _HAS_REGISTRY = True
+except ImportError:
+    _HAS_REGISTRY = False
 
-# Uniswap V3 NonfungiblePositionManager (same address on all EVM L2s)
+# Fallback: Uniswap V3 defaults (if registry not available)
+# These MUST match dex_registry.py uniswap_v3 → ethereum entries.
 # Ref: https://docs.uniswap.org/contracts/v3/reference/deployments/
-POSITION_MANAGER = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
+_FALLBACK_POSITION_MANAGER = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
+_FALLBACK_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
 
 
-# ── ABI Function Selectors ──────────────────────────────────────────────
-# First 4 bytes of keccak256(function_signature)
-
-SELECTORS = {
-    "positions":              "0x99fbab88",  # positions(uint256)
-    "slot0":                  "0x3850c7bd",  # slot0()
-    "liquidity":              "0x1a686502",  # liquidity()
-    "decimals":               "0x313ce567",  # decimals()
-    "symbol":                 "0x95d89b41",  # symbol()
-    "feeGrowthGlobal0X128":   "0xf3058399",  # feeGrowthGlobal0X128()
-    "feeGrowthGlobal1X128":   "0x46141319",  # feeGrowthGlobal1X128()
-    "ticks":                  "0xf30dba93",  # ticks(int24)
-}
-
-Q96 = 2 ** 96
-Q128 = 2 ** 128
-Q256 = 2 ** 256
-
-# Common token symbol normalization (on-chain symbols can be non-standard)
-SYMBOL_MAP = {
-    "USD₮0": "USDT",
-    "USD₮": "USDT",
-    "USDT0": "USDT",
-    "WETH": "WETH",
-    "USDC.e": "USDC.e",
-}
-
-
-def _normalize_symbol(raw_symbol: str) -> str:
-    """Normalize on-chain token symbol to common name."""
-    cleaned = raw_symbol.strip().strip("\x00")
-    return SYMBOL_MAP.get(cleaned, cleaned)
-
-
-# ── ABI Encoding / Decoding Helpers ─────────────────────────────────────
-
-def _encode_uint256(value: int) -> str:
-    """ABI-encode a uint256 as 32-byte hex (no 0x prefix)."""
-    return format(value, '064x')
-
-
-def _encode_int24(value: int) -> str:
-    """ABI-encode an int24 sign-extended to int256."""
-    if value < 0:
-        value = Q256 + value
-    return format(value, '064x')
-
-
-def _decode_uint(hex_data: str, slot: int = 0) -> int:
-    """Decode uint256 from ABI response at 32-byte slot offset."""
-    start = slot * 64
-    return int(hex_data[start:start + 64], 16)
-
-
-def _decode_int(hex_data: str, slot: int = 0) -> int:
-    """Decode int256 (two's complement) from ABI response."""
-    val = _decode_uint(hex_data, slot)
-    if val >= (1 << 255):
-        return val - Q256
-    return val
-
-
-def _decode_address(hex_data: str, slot: int = 0) -> str:
-    """Decode address (last 20 bytes of 32-byte slot)."""
-    start = slot * 64
-    return "0x" + hex_data[start + 24:start + 64]
-
-
-def _decode_string(hex_data: str) -> str:
-    """Decode ABI-encoded dynamic string return value."""
-    try:
-        offset = _decode_uint(hex_data, 0)
-        word_offset = offset // 32
-        length = _decode_uint(hex_data, word_offset)
-        start_byte = (word_offset + 1) * 64
-        hex_str = hex_data[start_byte:start_byte + length * 2]
-        return bytes.fromhex(hex_str).decode("utf-8").strip("\x00")
-    except Exception:
-        # Fallback: Some tokens return bytes32 instead of string
-        try:
-            raw = bytes.fromhex(hex_data[:64])
-            return raw.decode("utf-8").strip("\x00").strip()
-        except Exception:
-            return "UNK"
-
-
-# ── JSON-RPC Client ─────────────────────────────────────────────────────
-
-async def _eth_call(rpc_url: str, to: str, data: str, timeout: int = 20) -> str:
-    """
-    Execute eth_call on an EVM node.
-
-    Args:
-        rpc_url: JSON-RPC endpoint URL
-        to: Contract address (0x...)
-        data: ABI-encoded calldata (0x + selector + params)
-
-    Returns:
-        Hex response string (without 0x prefix).
-
-    Raises:
-        RuntimeError: If RPC returns an error.
-    """
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "eth_call",
-        "params": [{"to": to, "data": data}, "latest"],
-    }
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(rpc_url, json=payload)
-        result = resp.json()
-        if "error" in result:
-            raise RuntimeError(f"RPC error: {result['error'].get('message', result['error'])}")
-        raw = result.get("result", "0x")
-        if raw == "0x" or len(raw) < 4:
-            raise RuntimeError("Empty response — position may not exist")
-        return raw[2:]  # strip 0x prefix
-
-
-async def _eth_call_batch(rpc_url: str, calls: list, timeout: int = 20) -> list:
-    """
-    Batch multiple eth_call requests into a single HTTP request.
-
-    Args:
-        calls: List of (to, data) tuples.
-
-    Returns:
-        List of hex result strings.
-    """
-    payloads = []
-    for i, (to, data) in enumerate(calls):
-        payloads.append({
-            "jsonrpc": "2.0",
-            "id": i + 1,
-            "method": "eth_call",
-            "params": [{"to": to, "data": data}, "latest"],
-        })
-
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(rpc_url, json=payloads)
-        results = resp.json()
-
-    # Sort by id and extract results
-    if isinstance(results, list):
-        results.sort(key=lambda r: r.get("id", 0))
-        return [r.get("result", "0x")[2:] if "result" in r else "" for r in results]
-    else:
-        # Single result (some RPCs don't support batch)
-        return [results.get("result", "0x")[2:]]
+# ABI function selectors, encoding/decoding, and RPC client
+# are all imported from defi_cli.rpc_helpers (shared with position_indexer.py).
 
 
 # ── Position Reader ─────────────────────────────────────────────────────
 
 class PositionReader:
     """
-    Reads Uniswap V3 position data directly from the blockchain.
+    Reads V3-compatible position data directly from the blockchain.
+    Supports multiple DEXes: Uniswap V3, PancakeSwap V3, SushiSwap V3.
 
     Usage:
-        reader = PositionReader("arbitrum")
-        data = await reader.read_position(1234567, "0x...pool_addr...")
+        reader = PositionReader("arbitrum")                           # Uniswap V3 default
+        reader = PositionReader("arbitrum", dex_slug="pancakeswap_v3") # PancakeSwap V3
+        data = await reader.read_position(1234567)                    # auto-detect pool
+        data = await reader.read_position(1234567, "0x...pool_addr")  # explicit pool
     """
 
-    def __init__(self, network: str = "arbitrum"):
+    def __init__(self, network: str = "arbitrum", dex_slug: str = "uniswap_v3"):
         if network not in RPC_URLS:
             raise ValueError(
                 f"Unsupported network: {network}. "
@@ -228,27 +110,37 @@ class PositionReader:
             )
         self.network = network
         self.rpc_url = RPC_URLS[network]
+        self.dex_slug = dex_slug
+
+        # Resolve contract addresses from DEX registry
+        if _HAS_REGISTRY:
+            pm = get_position_manager_address(dex_slug, network)
+            factory = get_factory_address(dex_slug, network)
+            self.position_manager = pm or _FALLBACK_POSITION_MANAGER
+            self.factory = factory or _FALLBACK_FACTORY
+            self.dex_name = get_dex_display_name(dex_slug)
+            self.dex_icon = get_dex_icon(dex_slug)
+        else:
+            self.position_manager = _FALLBACK_POSITION_MANAGER
+            self.factory = _FALLBACK_FACTORY
+            self.dex_name = "Uniswap V3"
+            self.dex_icon = "🦄"
 
     async def _get_block_number(self) -> int:
         """Fetch current block number for audit trail reproducibility."""
-        payload = {
-            "jsonrpc": "2.0", "id": 1,
-            "method": "eth_blockNumber", "params": [],
-        }
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(self.rpc_url, json=payload)
-                return int(resp.json().get("result", "0x0"), 16)
-        except Exception:
+            return await _eth_block_number(self.rpc_url)
+        except Exception:  # noqa: BLE001
             return 0
 
-    async def read_position(self, position_id: int, pool_address: str) -> Dict:
+    async def read_position(self, position_id: int, pool_address: str = None) -> Dict[str, Any]:
         """
         Read complete position data from the blockchain.
 
         Args:
             position_id: NFT token ID (integer)
-            pool_address: Pool contract address (0x...)
+            pool_address: Pool contract address (0x...). If None, auto-resolved
+                          from on-chain data via Factory.getPool().
 
         Returns:
             Dict with position data, pool state, token amounts, fees,
@@ -257,15 +149,22 @@ class PositionReader:
         # ── Step 0: Validate inputs ────────────────────────────────
         if position_id < 0:
             raise ValueError(f"position_id must be non-negative, got {position_id}")
-        if not pool_address or not pool_address.startswith("0x") or len(pool_address) != 42:
+        if pool_address and (not pool_address.startswith("0x") or len(pool_address) != 42):
             raise ValueError(f"Invalid pool address: {pool_address}")
 
-        # ── Step 0b: Capture block number for audit ──────────────────
+        # ── Step 0b: Capture block number for audit ──────────────────────
         block_number = await self._get_block_number()
 
-        # ── Step 1: Read position NFT ────────────────────────────────
+        # ── Step 1: Read position NFT ────────────────────────────────────
         print(f"  📖 Reading position #{position_id} from {self.network}...")
         pos = await self._read_position_nft(position_id)
+
+        # ── Step 1b: Auto-resolve pool address if not provided ───────
+        if not pool_address:
+            pool_address = await self._resolve_pool_address(
+                pos["token0"], pos["token1"], pos["fee"]
+            )
+            print(f"  🎯 Auto-detected pool: {pool_address[:16]}...")
 
         if pos["liquidity"] == 0:
             print("  ⚠️  Position has zero liquidity (may be closed)")
@@ -288,14 +187,14 @@ class PositionReader:
 
         try:
             batch_results = await _eth_call_batch(self.rpc_url, batch_calls)
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Fallback to sequential calls if batch not supported
             batch_results = []
             for to, data in batch_calls:
                 try:
                     r = await _eth_call(self.rpc_url, to, data)
                     batch_results.append(r)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     batch_results.append("")
 
         # Parse batch results
@@ -334,15 +233,15 @@ class PositionReader:
                 (pool_address, tick_lower_call),
                 (pool_address, tick_upper_call),
             ])
-        except Exception:
+        except Exception:  # noqa: BLE001
             tick_batch = ["", ""]
             try:
                 tick_batch[0] = await _eth_call(self.rpc_url, pool_address, tick_lower_call)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
             try:
                 tick_batch[1] = await _eth_call(self.rpc_url, pool_address, tick_upper_call)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # ── Step 4: Compute token amounts ────────────────────────────
@@ -366,14 +265,29 @@ class PositionReader:
         price_upper = self._tick_to_price(pos["tickUpper"], decimals0, decimals1)
 
         # ── Step 7: Compute USD values ───────────────────────────────
-        # Assumption: token1 is the quote (stablecoin like USDT/USDC)
-        # If not, we'd need an external price oracle — but for ETH/USDT this works
-        token0_value_usd = amounts["amount0"] * current_price
-        token1_value_usd = amounts["amount1"]  # token1 ≈ $1 for stablecoins
+        # Smart stablecoin detection (defi_cli.stablecoins) determines
+        # which side is the quote asset (≈ $1). Falls back to token1
+        # assumption for exotic pairs without an external price oracle.
+        stable_idx = stablecoin_side(symbol0, symbol1)
+        if stable_idx == 1:
+            # token1 is stablecoin — token0 is priced in token1
+            token0_value_usd = amounts["amount0"] * current_price
+            token1_value_usd = amounts["amount1"]
+            fee0_value_usd = fees["fees0"] * current_price
+            fee1_value_usd = fees["fees1"]
+        elif stable_idx == 0:
+            # token0 is stablecoin — token1 is priced as 1/price
+            token0_value_usd = amounts["amount0"]
+            token1_value_usd = amounts["amount1"] / current_price if current_price > 0 else 0
+            fee0_value_usd = fees["fees0"]
+            fee1_value_usd = fees["fees1"] / current_price if current_price > 0 else 0
+        else:
+            # Neither is stablecoin — best effort using token1 as quote
+            token0_value_usd = amounts["amount0"] * current_price
+            token1_value_usd = amounts["amount1"]
+            fee0_value_usd = fees["fees0"] * current_price
+            fee1_value_usd = fees["fees1"]
         total_value_usd = token0_value_usd + token1_value_usd
-
-        fee0_value_usd = fees["fees0"] * current_price
-        fee1_value_usd = fees["fees1"]
         total_fees_usd = fee0_value_usd + fee1_value_usd
 
         # Composition percentages
@@ -449,11 +363,16 @@ class PositionReader:
             "block_number": block_number,
 
             # Audit trail: raw on-chain values for independent verification
+            # DEX identification
+            "dex_slug": self.dex_slug,
+            "dex_name": self.dex_name,
+
             "audit_trail": {
                 "block_number": block_number,
                 "rpc_endpoint": self.rpc_url,
+                "dex": self.dex_name,
                 "contracts": {
-                    "position_manager": POSITION_MANAGER,
+                    "position_manager": self.position_manager,
                     "pool": pool_address,
                     "token0": pos["token0"],
                     "token1": pos["token1"],
@@ -461,7 +380,7 @@ class PositionReader:
                 "raw_calls": [
                     {
                         "label": "positions(uint256)",
-                        "to": POSITION_MANAGER,
+                        "to": self.position_manager,
                         "selector": SELECTORS["positions"],
                         "calldata": SELECTORS["positions"] + hex(position_id)[2:].zfill(64),
                         "decoded": {
@@ -526,7 +445,7 @@ class PositionReader:
            tokensOwed0, tokensOwed1)
         """
         calldata = SELECTORS["positions"] + _encode_uint256(token_id)
-        result = await _eth_call(self.rpc_url, POSITION_MANAGER, calldata)
+        result = await _eth_call(self.rpc_url, self.position_manager, calldata)
 
         return {
             "nonce":                       _decode_uint(result, 0),
@@ -542,6 +461,32 @@ class PositionReader:
             "tokensOwed0":                 _decode_uint(result, 10),
             "tokensOwed1":                 _decode_uint(result, 11),
         }
+
+    # ── Internal: Resolve pool address from Factory ──────────────────
+
+    async def _resolve_pool_address(self, token0: str, token1: str, fee: int) -> str:
+        """
+        Resolve pool address from UniswapV3Factory.getPool(token0, token1, fee).
+
+        This enables auto-detection: given a position NFT, we can discover
+        the pool address without the user providing it manually.
+
+        Ref: https://github.com/Uniswap/v3-core/blob/main/contracts/UniswapV3Factory.sol
+        """
+        calldata = (
+            SELECTORS["getPool"]
+            + _encode_address(token0)
+            + _encode_address(token1)
+            + _encode_uint24(fee)
+        )
+        result = await _eth_call(self.rpc_url, self.factory, calldata)
+        pool = _decode_address(result, 0)
+        if pool == "0x" + "0" * 40:
+            raise RuntimeError(
+                f"Pool not found for {token0[:10]}.../{token1[:10]}... fee={fee}. "
+                f"The position may be on a different network."
+            )
+        return pool
 
     # ── Internal: Compute token amounts ──────────────────────────────
 
@@ -698,19 +643,21 @@ class PositionReader:
 
 async def _test_position(
     position_id: int,
-    pool_address: str,
+    pool_address: str | None = None,
     network: str = "arbitrum",
-):
+    dex_slug: str = "uniswap_v3",
+) -> Dict:
     """Quick test: read a real position from chain.
 
     Usage:
-        python position_reader.py <position_id> <pool_address> [network]
+        python position_reader.py <position_id> [pool_address] [network] [dex_slug]
     """
-    reader = PositionReader(network)
+    reader = PositionReader(network, dex_slug=dex_slug)
     data = await reader.read_position(position_id, pool_address)
 
     print("\n" + "=" * 60)
     print(f"  Position #{data['position_id']} — {data['token0_symbol']}/{data['token1_symbol']}")
+    print(f"  DEX: {data.get('dex_name', 'Uniswap V3')}")
     print(f"  Network: {data['network'].title()} | Pool: {data['pool_address'][:16]}...")
     print("=" * 60)
     print(f"  Status     : {'🟢 In Range' if data['in_range'] else '🔴 Out of Range'}")
@@ -735,13 +682,21 @@ async def _test_position(
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) < 3:
-        print("Usage: python position_reader.py <position_id> <pool_address> [network]")
-        print("  position_id  : Uniswap V3 NFT token ID (integer)")
-        print("  pool_address : Pool contract address (0x...)")
-        print("  network      : arbitrum | ethereum | polygon | base | optimism")
+    if len(sys.argv) < 2:
+        print("Usage: python position_reader.py <position_id> [pool_address] [network] [dex_slug]")
+        print("  position_id  : V3 NFT token ID (integer)")
+        print("  pool_address : Pool contract address (0x...) — auto-detected if omitted")
+        print("  network      : arbitrum | ethereum | polygon | base | optimism | bsc")
+        print("  dex_slug     : uniswap_v3 | pancakeswap_v3 | sushiswap_v3")
         sys.exit(1)
     pos_id = int(sys.argv[1])
-    pool = sys.argv[2]
-    net = sys.argv[3] if len(sys.argv) > 3 else "arbitrum"
-    asyncio.run(_test_position(pos_id, pool, net))
+    pool = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2].startswith("0x") else None
+    net = sys.argv[-1] if len(sys.argv) > 2 and not sys.argv[-1].startswith("0x") else "arbitrum"
+    if len(sys.argv) > 3:
+        net = sys.argv[3]
+    dex = "uniswap_v3"
+    for arg in sys.argv[2:]:
+        if arg in ("uniswap_v3", "pancakeswap_v3", "sushiswap_v3"):
+            dex = arg
+            break
+    asyncio.run(_test_position(pos_id, pool, net, dex))

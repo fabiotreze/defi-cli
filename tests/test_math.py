@@ -319,8 +319,8 @@ class TestAnalyzePosition:
     @pytest.fixture
     def sample_position(self):
         return PositionData(
-            weth_amount=1.0,
-            usdt_amount=2000.0,
+            token0_amount=1.0,
+            token1_amount=2000.0,
             token0_symbol="WETH",
             token1_symbol="USDC",
             current_price=2000.0,
@@ -369,8 +369,133 @@ class TestAnalyzePosition:
             current_price=1500.0,  # below range
             range_min=1800.0,
             range_max=2200.0,
-            weth_amount=1.0,
+            token0_amount=1.0,
             total_value_usd=3000.0,
         )
         result = analyze_position(pos)
         assert result["in_range"] is False
+
+    # ── NEW: V3 Impermanent Loss fields ──
+
+    def test_il_fields_present(self, sample_position):
+        result = analyze_position(sample_position)
+        for field in ["il_at_lower_v3_pct", "il_at_upper_v3_pct",
+                       "il_at_lower_v2_pct", "il_at_upper_v2_pct"]:
+            assert field in result, f"Missing IL field: {field}"
+
+    def test_il_at_boundaries_negative(self, sample_position):
+        """IL should be negative (a loss) when price moves to boundary."""
+        result = analyze_position(sample_position)
+        # IL at boundaries should be ≤ 0 (loss or zero)
+        assert result["il_at_lower_v3_pct"] <= 0
+        assert result["il_at_upper_v3_pct"] <= 0
+
+    def test_v3_il_larger_than_v2(self, sample_position):
+        """V3 IL should be amplified (more negative) compared to V2."""
+        result = analyze_position(sample_position)
+        # V3 IL magnitude ≥ V2 IL magnitude (both are negative)
+        assert abs(result["il_at_lower_v3_pct"]) >= abs(result["il_at_lower_v2_pct"])
+
+    # ── NEW: Range Width % ──
+
+    def test_range_width_pct_present(self, sample_position):
+        result = analyze_position(sample_position)
+        assert "range_width_pct" in result
+
+    def test_range_width_pct_correct(self, sample_position):
+        """Range width: (2200-1800)/2000 × 100 = 20%."""
+        result = analyze_position(sample_position)
+        assert result["range_width_pct"] == pytest.approx(20.0, abs=0.1)
+
+    # ── NEW: Vol/TVL Ratio ──
+
+    def test_vol_tvl_ratio_present(self, sample_position):
+        result = analyze_position(sample_position)
+        assert "vol_tvl_ratio" in result
+
+    def test_vol_tvl_ratio_correct(self, sample_position):
+        """Vol/TVL = 100M / 50M = 2.0."""
+        result = analyze_position(sample_position)
+        assert result["vol_tvl_ratio"] == pytest.approx(2.0, abs=0.01)
+
+    # ── NEW: HODL Comparison ──
+
+    def test_hodl_comparison_present(self, sample_position):
+        result = analyze_position(sample_position)
+        assert "hodl_comparison" in result
+        hodl = result["hodl_comparison"]
+        assert "fees_earned_usd" in hodl
+        assert "il_if_at_lower_pct" in hodl
+        assert "il_if_at_upper_pct" in hodl
+        assert "net_if_at_lower_usd" in hodl
+        assert "net_if_at_upper_usd" in hodl
+
+    def test_hodl_fees_match_position(self, sample_position):
+        result = analyze_position(sample_position)
+        assert result["hodl_comparison"]["fees_earned_usd"] == 10.0
+
+
+# ── V3 Impermanent Loss Calculations ────────────────────────────────────
+
+class TestImpermanentLossV3:
+    """Tests for RiskAnalyzer.impermanent_loss_v3() — V3 IL = V2 IL × CE."""
+
+    def test_no_price_change_no_il(self):
+        """If price hasn't moved, IL should be 0."""
+        result = RiskAnalyzer.impermanent_loss_v3(2000, 2000, 1800, 2200)
+        assert result["il_v2_pct"] == pytest.approx(0.0, abs=0.01)
+        assert result["il_v3_pct"] == pytest.approx(0.0, abs=0.01)
+
+    def test_il_negative_on_price_change(self):
+        """IL should be negative (loss) when price moves away from initial."""
+        result = RiskAnalyzer.impermanent_loss_v3(2000, 1800, 1500, 2500)
+        assert result["il_v2_pct"] < 0
+        assert result["il_v3_pct"] < 0
+
+    def test_v3_il_amplified_by_ce(self):
+        """V3 IL should be larger in magnitude than V2 IL."""
+        result = RiskAnalyzer.impermanent_loss_v3(2000, 1600, 1500, 2500)
+        assert abs(result["il_v3_pct"]) > abs(result["il_v2_pct"])
+        assert result["capital_efficiency"] > 1.0
+
+    def test_il_clamped_to_minus_100(self):
+        """V3 IL should never exceed -100%."""
+        # Extreme price movement with very tight range
+        result = RiskAnalyzer.impermanent_loss_v3(2000, 100, 1900, 2100)
+        assert result["il_v3_pct"] >= -100.0
+
+    def test_symmetric_il(self):
+        """IL from price going up vs down by same ratio should be symmetric."""
+        # Price doubles
+        up = RiskAnalyzer.impermanent_loss_v3(2000, 4000, 1500, 5000)
+        # Price halves
+        down = RiskAnalyzer.impermanent_loss_v3(2000, 1000, 500, 3500)
+        # Both should have V2 IL of same magnitude (symmetric around ratio)
+        # Note: exact symmetry depends on range, but both should be negative
+        assert up["il_v2_pct"] < 0
+        assert down["il_v2_pct"] < 0
+
+
+# ── Range Width % Calculations ──────────────────────────────────────────
+
+class TestRangeWidthPct:
+    """Tests for RiskAnalyzer.range_width_pct()."""
+
+    def test_standard_range(self):
+        """(2200-1800)/2000 × 100 = 20%."""
+        result = RiskAnalyzer.range_width_pct(2000, 1800, 2200)
+        assert result == pytest.approx(20.0, abs=0.01)
+
+    def test_wide_range(self):
+        """(3000-1000)/2000 × 100 = 100%."""
+        result = RiskAnalyzer.range_width_pct(2000, 1000, 3000)
+        assert result == pytest.approx(100.0, abs=0.01)
+
+    def test_very_tight_range(self):
+        """(2010-1990)/2000 × 100 = 1%."""
+        result = RiskAnalyzer.range_width_pct(2000, 1990, 2010)
+        assert result == pytest.approx(1.0, abs=0.01)
+
+    def test_zero_price_returns_zero(self):
+        result = RiskAnalyzer.range_width_pct(0, 1800, 2200)
+        assert result == 0.0

@@ -225,7 +225,7 @@ class DexScreenerClient:
         }
     
 
-# Cliente global
+# Global client
 dex_client = DexScreenerClient()
 
 async def analyze_pool_real(pool_address: str = None, network: str = None) -> Dict[str, Any]:
@@ -239,7 +239,7 @@ async def analyze_pool_real(pool_address: str = None, network: str = None) -> Di
     - Any pool on any DEX
     - Any token (searches its best pools)
     - Any supported network
-    - Automatic network auto-detection
+    - Automatic network detection
     """
     if not pool_address:
         return {
@@ -277,7 +277,7 @@ async def analyze_pool_real(pool_address: str = None, network: str = None) -> Di
         }
 
 # Universal test function
-async def test_universal_pool(address: str = None):
+async def test_universal_pool(address: str | None = None) -> Dict[str, Any] | None:
     """Test the universal implementation with any pool/token."""
     
     if not address:

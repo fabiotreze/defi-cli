@@ -3,228 +3,213 @@
 <p>
 <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-≥3.10-3776AB?logo=python&logoColor=white" alt="Python"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-<a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
+<a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.1-blue" alt="Version"></a>
 <a href="#donations"><img src="https://img.shields.io/badge/₿_Donate_Crypto-f7931a?logo=bitcoin&logoColor=white" alt="Donate Crypto"></a>
 </p>
 
-**Educational** Uniswap V3 concentrated-liquidity analyzer.  
+**Educational** multi-DEX V3 concentrated-liquidity analyzer.  
+Supports **Uniswap V3** 🦄, **PancakeSwap V3** 🥞, and **SushiSwap V3** 🍣.  
 Reads real on-chain data, generates HTML reports, and performs risk analysis.
 
-> ⚠️ **This is NOT financial, investment, tax, or legal advice.**  
-> DeFi protocols carry **HIGH RISK** including **total loss of capital**.  
-> The developer assumes **NO LIABILITY** for any financial losses.  
-> All strategies shown are **mathematical examples**, not recommendations.  
-> **Use at your own risk.** Always do your own research (DYOR).
+> ⚠️ **Not financial advice.** DeFi = **HIGH RISK** including **total loss of capital**. Use at your own risk. DYOR.
 
 ---
 
-## Table of Contents
+## Install
 
-- [Quick Start](#quick-start)
-- [Commands](#commands)
-- [Important: Full Experience Requirements](#important-full-experience-requirements)
-- [Known Limitations](#known-limitations)
-- [Report Preview](#report-preview)
-- [Supported Networks & Protocols](#supported-networks--protocols)
-- [File Structure](#file-structure)
-- [Dependencies](#dependencies)
-- [Data Sources](#data-sources)
-- [Testing](#testing)
-- [Cross-Validation](#cross-validation)
-- [Formula References](#formula-references)
-- [Legal](#legal)
-- [Donations](#donations)
-
----
-
-## Quick Start
-
-### macOS / Linux
+**macOS / Linux**
 
 ```bash
 git clone https://github.com/fabiotreze/defi-cli.git
 cd defi-cli
-python3 -m venv defi_env
-source defi_env/bin/activate
-pip install -e .
-python run.py info                          # System overview
-python run.py pool <pool_address>           # Analyse any pool
-python run.py report <pool_address>         # Generate HTML report (simulated)
-python run.py report <pool> --position <id> # Report with real on-chain data
-python run.py check                         # Integration tests
+python3 -m venv defi_env && source defi_env/bin/activate
+pip install -r requirements.txt && pip install -e .
 ```
 
-### Windows (PowerShell)
+**Windows (PowerShell)**
 
 ```powershell
 git clone https://github.com/fabiotreze/defi-cli.git
 cd defi-cli
-python -m venv defi_env
-defi_env\Scripts\activate
-pip install -e .
-python run.py info                          # System overview
-python run.py pool <pool_address>           # Analyse any pool
-python run.py report <pool_address>         # Generate HTML report (simulated)
-python run.py report <pool> --position <id> # Report with real on-chain data
-python run.py check                         # Integration tests
+python -m venv defi_env; defi_env\Scripts\activate
+pip install -r requirements.txt; pip install -e .
 ```
-
-> **Important:** Always use a virtual environment. Running without one may cause conflicts with other installed packages.
 
 ---
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `python run.py pool <address>` | Analyse any pool using DEXScreener API |
-| `python run.py report <address>` | Generate HTML report with simulated position |
-| `python run.py report <address> --position <id>` | Report with **real** on-chain position data |
-| `python run.py report <address> --position <id> --wallet <addr> --network <net>` | Full report |
-| `python run.py check` | Run integration tests against live pools |
-| `python run.py info` | Display system and architecture info |
-| `python run.py donate` | Show donation addresses |
+### `report` — Generate HTML Report
 
-### How to Find Your Position ID and Pool Address
-
-1. Go to [app.uniswap.org](https://app.uniswap.org) → **Pool** → click your position  
-2. The URL contains: `/positions/v3/<network>/<position_id>`  
-3. Click the pool link (e.g. "WETH/USDT 0.05%") → the URL contains the pool address  
-4. Your wallet address is in MetaMask → copy address  
-
----
-
-## Important: Full Experience Requirements
-
-> **For the full report experience with all features and working links, the following parameters are required:**
-
-| Parameter | Required For | What Happens Without It |
-|-----------|-------------|------------------------|
-| `--position <id>` | Real on-chain data, audit trail | Simulated data used; no verifiable audit trail |
-| `--wallet <address>` | Cross-validation links (Revert.finance, Zerion, DeBank) | Links will not load correctly |
-| `--network <name>` | Correct RPC endpoint and explorer links | Defaults to Arbitrum |
-
-**Full command example:**
 ```bash
-python run.py report 0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443 \
-  --position 878380 \
-  --wallet 0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4 \
-  --network arbitrum
+python run.py report \
+  --pool <POOL_ADDRESS> \
+  --position <POSITION_ID> \
+  --wallet <WALLET_ADDRESS> \
+  --network <NETWORK> \
+  --dex <DEX>
+```
+
+| Parameter | Required For | Without It |
+|-----------|-------------|------------|
+| `--pool` | Target pool | Required (or auto-detected from `--position`) |
+| `--position` | Real on-chain data + audit trail | Simulated data |
+| `--wallet` | Cross-validation links (Revert, Zerion, DeBank) | Links won't work |
+| `--network` | Correct RPC + explorer links | Defaults to `arbitrum` |
+| `--dex` | Non-Uniswap positions | Defaults to `uniswap_v3` |
+
+### `list` — Scan Wallet for V3 Positions
+
+```bash
+python run.py list <WALLET_ADDRESS> --network <NETWORK> --dex <DEX>
+```
+
+### `pool` — Analyze Any Pool
+
+```bash
+python run.py pool --pool <POOL_ADDRESS>
+```
+
+### `scout` — Compare Pools for a Token Pair
+
+```bash
+python run.py scout <PAIR> --network <NETWORK> --dex <DEX> --sort <apy|tvl|volume|efficiency>
+```
+
+### `check` · `info` · `donate`
+
+```bash
+python run.py check     # Integration tests against live pools
+python run.py info      # System info + supported DEXes
+python run.py donate    # Donation addresses
 ```
 
 ---
 
-## Known Limitations
+## Full Example — Best Experience
 
-These limitations are **correctly disclosed** in every generated report:
+> **All parameters = full report with real on-chain data, audit trail, and cross-validation links.**
 
-| Limitation | Impact | Mitigation |
-|-----------|--------|------------|
-| **Divergence Loss (IL) not calculated** | Fee APR ≠ Total PnL. You may have high fee APR but **negative** total PnL if IL > fees earned | Use [Revert.finance](https://revert.finance) to see real PnL |
-| **Projections based on 24h snapshot** | 24h volume may not represent actual average; APR assumes constant in-range status | Reports warn "may differ by 20–30%" |
-| **Strategies are mathematical examples** | Based on formulas, not market predictions | Not investment recommendations |
-| **Out-of-range risk** | If price exits your range → 0 fees + 100% exposure to one token | Monitor downside buffer % in report |
-| **No historical data** | Cannot show position performance over time | Cross-validate with Revert.finance |
+```bash
+python run.py report \
+  --pool 0x641C00A822e8b671738d32a431a4Fb6074E5c79d \
+  --position 5260106 \
+  --wallet 0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4 \
+  --network arbitrum \
+  --dex uniswap_v3
+```
 
-> **Bottom line:** The report is technically sound but **Fee APR ≠ Total PnL** because IL is not computed.  
-> Always cross-validate with [Revert.finance](https://revert.finance) for your real PnL.
+```bash
+python run.py list 0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4 --network arbitrum
+```
+
+```bash
+python run.py scout WETH/USDT --network arbitrum --sort apy --limit 5
+```
+
+### How to Find Your Position ID
+
+1. [app.uniswap.org](https://app.uniswap.org) → **Pool** → click your position  
+2. URL: `/positions/v3/<network>/<position_id>`  
+3. Pool link (e.g. "WETH/USDT 0.05%") → contains the pool address  
+
+---
+
+## Parameters
+
+| Parameter | Values | Default |
+|-----------|--------|---------|
+| `--network` | `arbitrum` · `ethereum` · `polygon` · `base` · `optimism` · `bsc` | `arbitrum` |
+| `--dex` | `uniswap_v3` · `pancakeswap_v3` · `sushiswap_v3` | `uniswap_v3` |
+| `--sort` | `apy` · `tvl` · `volume` · `efficiency` | `apy` |
+| `--limit` | Integer | `15` |
+| `--min-tvl` | USD (e.g. `50000`) | `50000` |
+
+---
+
+## Supported Networks & DEXes
+
+| DEX | Networks | Position Manager |
+|-----|----------|-----------------|
+| 🦄 Uniswap V3 | ETH, ARB, POLY, BASE, OP | `0xC364…FE88` (Base: `0x03a5…4f1`) |
+| 🥞 PancakeSwap V3 | ETH, BSC, ARB, BASE | `0x46A1…4364` (ARB: `0x427b…96c1`) |
+| 🍣 SushiSwap V3 | ETH, ARB, POLY, BASE, OP | Per-chain ([dex_registry.py](defi_cli/dex_registry.py)) |
+
+All RPC calls go through [1RPC.io](https://docs.1rpc.io/web3-relay/overview) — privacy-preserving TEE relay (no API keys, no tracking).
+
+| Network | RPC | Explorer |
+|---------|-----|----------|
+| Arbitrum | `1rpc.io/arb` | [arbiscan.io](https://arbiscan.io) |
+| Ethereum | `1rpc.io/eth` | [etherscan.io](https://etherscan.io) |
+| Polygon | `1rpc.io/matic` | [polygonscan.com](https://polygonscan.com) |
+| Base | `1rpc.io/base` | [basescan.org](https://basescan.org) |
+| Optimism | `1rpc.io/op` | [optimistic.etherscan.io](https://optimistic.etherscan.io) |
+| BSC | `1rpc.io/bnb` | [bscscan.com](https://bscscan.com) |
+
+Pool data via [DEXScreener API](https://docs.dexscreener.com/api/reference) — supports all DEXes on 50+ networks. **No API keys required.**
 
 ---
 
 ## Report Preview
-
-The CLI generates comprehensive HTML reports with real on-chain data:
 
 <p align="center">
 <a href="docs/screenshots/01_header.png"><img src="docs/screenshots/01_header.png" width="600"></a>
 </p>
 
 <details>
-<summary><strong>View all report sections (6 more screenshots)</strong></summary>
+<summary><strong>View all report sections (6 more)</strong></summary>
 <br>
 
 | Section | Preview |
 |---------|---------|
-| **Session 1** — Your Position | <a href="docs/screenshots/02_position.png"><img src="docs/screenshots/02_position.png" width="500"></a> |
-| **Session 2** — Pool Stats | <a href="docs/screenshots/03_pool_stats.png"><img src="docs/screenshots/03_pool_stats.png" width="500"></a> |
-| **Session 3** — Strategies & Risk | <a href="docs/screenshots/04_strategies.png"><img src="docs/screenshots/04_strategies.png" width="500"></a> |
-| **Session 4** — Technical Details | <a href="docs/screenshots/05_technical.png"><img src="docs/screenshots/05_technical.png" width="500"></a> |
-| **Audit Trail** — On-Chain Calls | <a href="docs/screenshots/06_audit_trail.png"><img src="docs/screenshots/06_audit_trail.png" width="500"></a> |
-| **Session 5** — Legal Compliance | <a href="docs/screenshots/07_legal.png"><img src="docs/screenshots/07_legal.png" width="500"></a> |
+| Your Position | <a href="docs/screenshots/02_position.png"><img src="docs/screenshots/02_position.png" width="500"></a> |
+| Pool Stats | <a href="docs/screenshots/03_pool_stats.png"><img src="docs/screenshots/03_pool_stats.png" width="500"></a> |
+| Strategies & Risk | <a href="docs/screenshots/04_strategies.png"><img src="docs/screenshots/04_strategies.png" width="500"></a> |
+| Technical Details | <a href="docs/screenshots/05_technical.png"><img src="docs/screenshots/05_technical.png" width="500"></a> |
+| Audit Trail | <a href="docs/screenshots/06_audit_trail.png"><img src="docs/screenshots/06_audit_trail.png" width="500"></a> |
+| Legal Compliance | <a href="docs/screenshots/07_legal.png"><img src="docs/screenshots/07_legal.png" width="500"></a> |
 
 </details>
 
-> Generate your own: `python run.py report <pool> --position <id> --wallet <addr> --network <net>`  
-> Open the HTML file in any browser for the full interactive experience.
+Reports are **temporary by design** — opened in your browser, then discarded. Press **Ctrl+S** / **⌘+S** to save.
 
 ---
 
-## Supported Networks & Protocols
+## Known Limitations
 
-### On-Chain Reading (position data via JSON-RPC)
-
-| Network | RPC Endpoint | Explorer |
-|---------|-------------|----------|
-| Arbitrum | `arb1.arbitrum.io/rpc` | [arbiscan.io](https://arbiscan.io) |
-| Ethereum | `eth.llamarpc.com` | [etherscan.io](https://etherscan.io) |
-| Polygon | `polygon-rpc.com` | [polygonscan.com](https://polygonscan.com) |
-| Base | `mainnet.base.org` | [basescan.org](https://basescan.org) |
-| Optimism | `mainnet.optimism.io` | [optimistic.etherscan.io](https://optimistic.etherscan.io) |
-
-### Pool Data (DEXScreener API — no key required)
-
-Supports **all DEXes** on: Ethereum, Arbitrum, Polygon, Base, Optimism, Avalanche, Fantom, Solana, Cronos, Moonbeam, Celo, Harmony, and more.
-
-### Supported Tokens
-
-Any ERC-20 token pair on Uniswap V3 (or compatible DEXes). Common pairs:
-
-| Pair | Fee Tier | Type |
-|------|----------|------|
-| WETH/USDC | 0.05% | Correlated |
-| WETH/USDT | 0.05% | Correlated |
-| WBTC/WETH | 0.05% | Correlated |
-| USDC/USDT | 0.01% | Stablecoin |
-| Any/Any | 0.30% | Standard |
-| Exotic pairs | 1.00% | Exotic |
+| Limitation | Impact |
+|-----------|--------|
+| **IL not calculated** | Fee APR ≠ Total PnL — use [Revert.finance](https://revert.finance) for real PnL |
+| **24h snapshot** | Projections may differ 20–30% from actual averages |
+| **No historical data** | Cross-validate with [Revert](https://revert.finance), [Zerion](https://zerion.io), [DeBank](https://debank.com) |
+| **Mathematical examples** | Strategies are formulas, not investment recommendations |
 
 ---
 
-## File Structure
+## Data Sources
 
-```
-defi-cli/
-├── run.py                        # CLI entry point (all commands)
-├── real_defi_math.py             # Uniswap V3 math engine
-├── html_generator.py             # HTML report generator
-├── position_reader.py            # On-chain position reader (JSON-RPC)
-├── defi_cli/
-│   ├── __init__.py               # Package version
-│   ├── central_config.py         # DEXScreener API config
-│   ├── dexscreener_client.py     # DEXScreener API client
-│   └── legal_disclaimers.py      # Legal text & donations
-├── tests/
-│   └── test_math.py              # 65 formula validation tests
-├── docs/
-│   └── screenshots/              # Report preview images (for README)
-├── reports/                      # Generated HTML reports (gitignored)
-├── pyproject.toml                # Package config
-├── requirements.txt              # Dependencies
-├── LICENSE                       # MIT License
-├── SECURITY.md                   # Security policy
-├── AUDIT_REPORT.md               # Comprehensive code audit
-├── TEST_REPORT.md                # Full end-to-end test results
-└── .gitignore
+| Source | Provides | Docs |
+|--------|----------|------|
+| Uniswap V3 Contracts | Position data, prices, fees | [Whitepaper](https://uniswap.org/whitepaper-v3.pdf) |
+| PancakeSwap V3 Contracts | Position data (same ABI) | [Addresses](https://developer.pancakeswap.finance/contracts/v3/addresses) |
+| SushiSwap V3 Contracts | Position data (same ABI) | [Addresses](https://docs.sushi.com/docs/Products/V3%20AMM/Periphery/Deployment%20Addresses) |
+| DEXScreener API | Pool metrics, volume, TVL | [API Docs](https://docs.dexscreener.com/api/reference) |
+| 1RPC.io TEE Relay | Privacy-preserving RPC | [Docs](https://docs.1rpc.io/web3-relay/overview) |
+
+---
+
+## Testing
+
+```bash
+pip install pytest                         # dev-only dependency
+python -m pytest tests/ -v --tb=short      # run all 292 tests
 ```
 
-### Where Are My Reports?
-
-Generated HTML reports are saved to `reports/` with the naming format:
-```
-reports/WETH_USDT_arbitrum_20260206_083826.html
-```
-
-Open them in any browser: `open reports/<filename>.html`
+| Suite | Tests | Scope |
+|-------|-------|-------|
+| `test_math.py` | 83 | V3 math formulas, metrics, edge cases |
+| `test_units.py` | 195 | CLI commands, HTML output, mocked integration |
+| `test_codereview.py` | 14 | Code quality + 10 live network checks |
 
 ---
 
@@ -236,120 +221,38 @@ Open them in any browser: `open reports/<filename>.html`
 | httpx | ≥ 0.25.0 | HTTP client (API + JSON-RPC) |
 | pytest | ≥ 8.0 | Testing (dev only) |
 
-**No API keys required.** All data comes from public endpoints.
-
-### Tested Platforms
-
 | OS | Python | Status |
 |----|--------|--------|
-| macOS Sequoia 15.3 (ARM64) | 3.14 | ✅ Passed |
-| Windows 11 (x64) | 3.11 | ✅ Passed |
-| Ubuntu 24.04 (x64) | 3.12 | ✅ Passed |
-
-> **Note:** Always use a virtual environment (`python -m venv`) to avoid conflicts with globally installed packages.
-
----
-
-## Data Sources
-
-| Source | What It Provides | Documentation |
-|--------|-----------------|---------------|
-| Uniswap V3 Smart Contracts | Position data, prices, fees, liquidity | [Whitepaper](https://uniswap.org/whitepaper-v3.pdf) |
-| DEXScreener API | Pool metrics, volume, TVL | [API Docs](https://docs.dexscreener.com/api/reference) |
-| Public JSON-RPC | On-chain reads (no API key) | [Uniswap Deployments](https://docs.uniswap.org/contracts/v3/reference/deployments/) |
-
-### Key Contracts
-
-| Contract | Address | Usage |
-|----------|---------|-------|
-| NonfungiblePositionManager | `0xC36442b4a4522E871399CD717aBDD847Ab11FE88` | Read position NFTs |
-| Uniswap V3 Pools | Per-pair deployment | Read pool state (slot0, liquidity, fees) |
-
----
-
-## Testing
-
-```bash
-# Install pytest (if not already installed)
-pip install pytest
-
-# Run all 65 tests
-python -m pytest tests/ -v
-
-# Run with coverage
-python -m pytest tests/ -v --tb=short
-```
-
-> **Note:** pytest is a dev-only dependency and is not installed with `pip install -e .`
-
----
-
-## Cross-Validation
-
-Compare CLI output against independent sources:
-
-| Dashboard | What to Compare | Link |
-|-----------|----------------|------|
-| [Revert.finance](https://revert.finance) | Position PnL, fees, APR | Best for V3 positions |
-| [Zerion](https://zerion.io) | Wallet portfolio value | Best for total holdings |
-| [DeBank](https://debank.com) | Multi-chain portfolio | Good for overview |
-| [Uniswap App](https://app.uniswap.org) | Official position data | Canonical source |
-
----
-
-## Formula References
-
-All mathematical formulas are traceable to their original sources:
-
-| Formula | Source |
-|---------|--------|
-| `p(i) = 1.0001^i` | Uniswap V3 Whitepaper §6.1 |
-| `IL = 2√r / (1+r) - 1` | Pintail (2019) |
-| `CE = 1 / (1 - √(Pa/Pb))` | Uniswap V3 Whitepaper §2 |
-| `L = Δx / (1/√P - 1/√Pb)` | Uniswap V3 Whitepaper §6.2 |
-| `Fee APY = (V_24h × fee × share × 365) / V_pos × 100` | Uniswap V3 Fee Docs |
+| macOS Sequoia 15.3 (ARM64) | 3.14 | ✅ |
+| Windows 11 (x64) | 3.11 | ✅ |
+| Ubuntu 24.04 (x64) | 3.12 | ✅ |
 
 ---
 
 ## Uninstall
 
-All packages are installed inside the virtual environment (`defi_env/`) — **nothing touches your system Python**.  
-To completely remove DeFi CLI and all its dependencies, simply delete the project folder:
-
-### macOS / Linux — exit venv (if active) and delete the folder
-
 ```bash
-deactivate
-cd ..
-rm -rf defi-cli/
+deactivate && cd .. && rm -rf defi-cli/    # macOS / Linux
 ```
-
-### Windows (PowerShell) — exit venv (if active) and delete the folder
 
 ```powershell
-deactivate
-cd ..
-Remove-Item -Recurse -Force defi-cli\
+deactivate; cd ..; Remove-Item -Recurse -Force defi-cli\   # Windows
 ```
 
-> **Zero residue.** Deleting the folder removes the code, virtual environment, all installed packages, and generated reports. Nothing remains on your system.
+> **Zero residue.** Everything lives inside the project folder — nothing touches your system.
 
 ---
 
 ## Legal
 
-- **License:** MIT (see [LICENSE](LICENSE))
-- **Not financial advice.** Educational tool only.
-- **No warranty.** Software provided "AS IS."
-- **No liability.** Developer not responsible for any financial losses.
-
-See [SECURITY.md](SECURITY.md) for security policy and responsible disclosure.
+**MIT License** ([LICENSE](LICENSE)) · Not financial advice · No warranty · No liability  
+See [SECURITY.md](SECURITY.md) · [COMPLIANCE.md](COMPLIANCE.md)
 
 ---
 
 ## Donations
 
-If you find this tool valuable, voluntary donations are appreciated but never required:
+If this tool was useful, voluntary donations are appreciated but never required:
 
 | Currency | Address |
 |----------|---------|
