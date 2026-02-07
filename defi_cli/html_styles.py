@@ -308,4 +308,97 @@ def build_css(status_bg: str, status_border: str, status_text_color: str) -> str
             font-size: 0.95rem;
             box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
         }}
+
+        /* ===== Mobile Responsiveness ===== */
+        @media (max-width: 768px) {{
+            .container {{
+                padding: 12px;
+            }}
+            .header {{
+                padding: 1.25rem;
+                border-radius: 8px;
+            }}
+            .header h1 {{
+                font-size: 1.4rem;
+            }}
+            .session {{
+                padding: 1rem;
+                border-radius: 8px;
+            }}
+            .session-title {{
+                font-size: 1.2rem;
+            }}
+            .metric-grid {{
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }}
+            .metric-value {{
+                font-size: 1.1rem;
+            }}
+            .comparison-bars {{
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }}
+            .comparison-value {{
+                font-size: 1.2rem;
+            }}
+            .tile {{
+                padding: 1rem;
+                border-radius: 8px;
+            }}
+            .tile-icon {{
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }}
+            .tile-title {{
+                font-size: 1rem;
+            }}
+            .apy-value {{
+                font-size: 1.5rem;
+            }}
+            .range-labels {{
+                font-size: 0.65rem;
+            }}
+            .footer {{
+                padding: 1rem;
+            }}
+            .consent-info {{
+                padding: 1rem;
+                font-size: 0.85rem;
+            }}
+        }}
+
+        @media (max-width: 380px) {{
+            .container {{
+                padding: 8px;
+            }}
+            .header {{
+                padding: 1rem;
+            }}
+            .header h1 {{
+                font-size: 1.2rem;
+            }}
+            .session {{
+                padding: 0.75rem;
+            }}
+            .metric-card {{
+                padding: 0.75rem;
+            }}
+        }}
+
+        /* ===== Print friendly ===== */
+        @media print {{
+            body {{
+                background: white;
+                color: black;
+            }}
+            .container {{
+                max-width: 100%;
+            }}
+            .tile:hover {{
+                transform: none;
+                box-shadow: none;
+            }}
+        }}
     </style>"""
