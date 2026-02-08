@@ -131,3 +131,19 @@ defi_cli/
 ├── dexscreener_client.py  Async HTTP client (httpx)
 └── legal_disclaimers.py   Legal text, disclaimers
 ```
+
+## CI/CD Security (T30)
+
+The project uses GitHub Actions with the following security controls:
+
+| Control | Implementation |
+|---------|----------------|
+| **Pinned Actions** | All third-party actions pinned by full SHA (not mutable tags) |
+| **Least Privilege** | `permissions: contents: read` — no write access |
+| **Concurrency** | `cancel-in-progress: true` — prevents resource abuse on stale runs |
+| **Lint + Format** | `ruff check` + `ruff format --check` enforced on every push/PR |
+| **Security Scans** | Hardcoded secrets (T09), dangerous functions (`eval`/`exec`/`pickle`), HTTPS-only URLs |
+| **Test Matrix** | Python 3.10 / 3.11 / 3.12 — math, unit, and codereview tests |
+| **Codereview Report** | Full T06–T30 validation suite uploaded as artifact (30-day retention) |
+
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full pipeline definition.
