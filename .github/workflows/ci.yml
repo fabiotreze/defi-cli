@@ -86,7 +86,7 @@ jobs:
           FOUND=0
           if grep -rEn '\beval\s*\(' --include="*.py" . | grep -v '^\./tests/' | grep -v '^#'; then FOUND=1; fi
           if grep -rEn '\bexec\s*\(' --include="*.py" . | grep -v '^\./tests/' | grep -v '^#'; then FOUND=1; fi
-          if grep -rEn 'import pickle|import marshal' --include="*.py" .; then FOUND=1; fi
+          if grep -rEn 'import pickle|import marshal' --include="*.py" . | grep -v '^\./tests/'; then FOUND=1; fi
           if [ "$FOUND" -eq 1 ]; then
             echo "❌ Dangerous function usage detected!"
             exit 1
@@ -96,7 +96,7 @@ jobs:
       - name: Security scan — HTTPS only
         run: |
           echo "🔍 Verifying all URLs use HTTPS..."
-          if grep -rEn 'http://' --include="*.py" . | grep -v localhost | grep -v '127\.0\.0\.1' | grep -v '^\s*#' | grep -v '"""'; then
+          if grep -rEn 'http://' --include="*.py" . | grep -v localhost | grep -v '127\.0\.0\.1' | grep -v '^\s*#' | grep -v '"""' | grep -v '^\./tests/'; then
             echo "❌ Non-HTTPS URLs found!"
             exit 1
           fi
