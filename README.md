@@ -38,6 +38,8 @@ pip install -r requirements.txt; pip install -e .
 
 ## Commands
 
+> **Tip:** Run `python run.py --help` to see all available commands, options, and examples.
+
 ### `report` — Generate HTML Report
 
 ```bash
