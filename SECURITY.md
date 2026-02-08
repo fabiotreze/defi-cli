@@ -120,7 +120,7 @@ All blockchain reads are routed through [1RPC.io](https://1rpc.io), a TEE-attest
 ## Architecture (v1.1.1)
 
 ```
-run.py                     CLI entry point (6 commands: list, pool, report, check, donate, info)
+run.py                     CLI entry point (6 commands: list, pool, report, check, info, scout)
 real_defi_math.py          Uniswap V3 math (stdlib only, no network calls)
 html_generator.py          HTML reports (XSS-safe, CSP headers)
 position_reader.py         On-chain reader via public JSON-RPC (no API key)
@@ -129,5 +129,5 @@ defi_cli/
 ├── central_config.py      API config (endpoints, networks, rate limits)
 ├── dex_registry.py        Multi-DEX contract address registry
 ├── dexscreener_client.py  Async HTTP client (httpx)
-└── legal_disclaimers.py   Legal text, donation addresses
+└── legal_disclaimers.py   Legal text, disclaimers
 ```

@@ -60,7 +60,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Reports are now temporary only** — opened in browser, never saved to disk. User saves from browser (Ctrl+S) if desired. Privacy by design: no persistence, no cookies, no retention.
 - **Auto-detect network** — `--network` is now optional. When only `--position` is given, all 6 networks are scanned in parallel to find the position.
 - **SECURITY.md expanded** — full data transparency section: every external endpoint documented, LGPD/GDPR compliance, third-party services matrix, privacy guarantees
-- CLI commands restructured: `list`, `scout`, `pool`, `report`, `check`, `info`, `donate`
+- CLI commands restructured: `list`, `scout`, `pool`, `report`, `check`, `info`
 - HTML report now includes V3 IL tile, HODL comparison tile, Vol/TVL progress bar
 - Strategy projections scale relative to current position's capital efficiency
 - Position APR computed from on-chain liquidity share (most accurate method)
@@ -103,8 +103,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - `report --pool <0x…>` — Generate HTML report (simulated or real position)
 - `check` — Validate app against live Uniswap pools
 - `info` — System & architecture overview
-- `donate` — Show donation addresses
-
 **Technical Stack**
 - Python ≥ 3.10 (stdlib + httpx only)
 - Zero API keys required

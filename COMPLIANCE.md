@@ -104,8 +104,8 @@ Ordered by **potential harm** — higher priority = greater damage if violated.
 │  WETH/USDC          token names        yields.llama.fi                      │
 │                                        (no user data sent)                  │
 │                                                                             │
-│  info, donate,      (none)       ──→   (none)            ──→ CLI stdout     │
-│  check                                                                      │
+│  info, check        (none)       ──→   (none)            ──→ CLI stdout     │
+│                                                                       │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -154,7 +154,6 @@ Ordered by **potential harm** — higher priority = greater damage if violated.
 | `scout` | **None** | — | DefiLlama only, no user data sent |
 | `check` | **None** | — | Internal validation, no user data |
 | `info` | **None** | — | Static text, no network calls |
-| `donate` | **None** | — | Static text, no network calls |
 
 ### Consent Properties
 - **Timestamped** — `consent_timestamp` saved in report (visible in HTML Session 5)
