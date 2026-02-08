@@ -1,4 +1,7 @@
 """DeFi CLI — Uniswap V3 Position Analyzer."""
 
-__version__ = "1.1.1"
+from defi_cli.central_config import PROJECT_VERSION
+
+__version__ = PROJECT_VERSION
+
 __all__ = ["__version__"]

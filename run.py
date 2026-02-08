@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DeFi CLI v1.1.1 -- Educational DeFi Analyzer
+DeFi CLI -- Educational DeFi Analyzer
 ============================================
 
 Multi-DEX V3-compatible position scanner and analyzer.

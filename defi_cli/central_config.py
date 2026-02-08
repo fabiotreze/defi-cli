@@ -6,11 +6,20 @@ Contains DEXScreener API configuration and project metadata.
 Source: https://docs.dexscreener.com/api/reference
 """
 
+import re
 from dataclasses import dataclass
+from importlib.metadata import version, PackageNotFoundError
+from pathlib import Path
 from types import MappingProxyType
 
-# Version
-PROJECT_VERSION = "1.1.1"
+# Version — single source of truth is pyproject.toml
+try:
+    PROJECT_VERSION = version("defi-cli")
+except PackageNotFoundError:
+    # Dev / CI: package not installed — read pyproject.toml directly
+    _toml = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    _m = re.search(r'version\s*=\s*"([^"]+)"', _toml.read_text()) if _toml.exists() else None
+    PROJECT_VERSION = _m.group(1) if _m else "0.0.0-dev"
 PROJECT_NAME = "DeFi CLI"
 
 

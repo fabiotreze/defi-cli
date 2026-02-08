@@ -1,5 +1,5 @@
 """
-HTML report generator for DeFi CLI v1.1.1
+HTML report generator for DeFi CLI
 Generates comprehensive position analysis with 5 structured sections.
 
 This module creates detailed HTML reports from Uniswap V3 position data,
@@ -13,6 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 from defi_cli.html_styles import build_css as _build_css
+from defi_cli.central_config import PROJECT_VERSION
 
 
 # Constants
@@ -1255,7 +1256,7 @@ def _build_html(data: Dict) -> str:
 
         <!-- ═══════════════════ FOOTER ═══════════════════ -->
         <div class="footer">
-            <p><strong>DeFi CLI v1.1.1</strong> · Report generated on {generated}</p>
+            <p><strong>DeFi CLI v{PROJECT_VERSION}</strong> · Report generated on {generated}</p>
             <p>Sources: Uniswap V3 Whitepaper, DEXScreener API, DefiLlama Yields API</p>
             <p style="font-size: 0.875rem; color: var(--text-light);">
                 This report was generated for educational purposes. Always verify data independently.

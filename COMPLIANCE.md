@@ -340,7 +340,7 @@ Each of the 50 codereview categories in `.codereview.md` maps to a priority leve
 | P4 Liability | T19, T24, T26 | Disclaimers present, LICENSE file exists, CVM disclaimer |
 | P5 Accuracy | T05, T11, T12, T13, T14, T15 | 83 formula tests, roundtrip, symmetry, pipeline |
 | P6 Regulatory | T19, T26 | Disclaimer text includes regulatory notices, CVM compliance |
-| P7 Versioning | T08, T21, T24 | Version consistency, requirements, file integrity |
+| P7 Versioning | T08, T21, T24 | Version consistency, requirements, file integrity, single-source version via importlib.metadata, release workflow (tag↔version validation) |
 
 ---
 
@@ -360,6 +360,7 @@ All services are accessed via **HTTPS only**, verified by T23 (no `http://` in c
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.1 | 2026-02-08 | Single-source version (pyproject.toml → importlib.metadata). Release workflow added. |
 | 1.1.0 | 2026-02-08 | Added T25–T30 (LGPD, CVM, tracking, Azure IaC, Docker, CI/CD). CI pipeline added. |
 | 1.0.0 | 2026-02-07 | Initial P1–P7 compliance framework |
 

@@ -36,6 +36,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - SECURITY.md version reference updated to v1.1.1
 - `cmd_info()` version label: "New in v1.1.0" → "New in v1.1.x"
 
+- **Single-source version** — `pyproject.toml` is the sole source of truth; `central_config.py`, `__init__.py`, `html_generator.py`, and `run.py` derive version via `importlib.metadata` with pyproject.toml fallback
+- **Automated release workflow** (`.github/workflows/release.yml`) — validates tag↔pyproject.toml version match, verifies CHANGELOG entry, runs full test suite + lint, creates GitHub Release with extracted notes
+
 ### Fixed
 - HTML report footer showed "v1.1.0" instead of "v1.1.1" (hardcoded)
 - Docstring example in `estimate_fee_tier("WETH","USDC")` returned wrong value (0.003 → 0.0005)
