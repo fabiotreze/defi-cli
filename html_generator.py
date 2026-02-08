@@ -15,19 +15,28 @@ from typing import Dict, Any
 from defi_cli.html_styles import build_css as _build_css
 
 
-
 # Constants
 # No persistent output directory — all reports are temporary (privacy by design)
+
 
 def _safe(value: Any, fallback: str = "Unknown") -> str:
     """Escape a value for safe HTML embedding (XSS prevention)."""
     if value is None:
         return fallback
-    return str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#x27;")
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#x27;")
+    )
+
 
 def _safe_filename(value: str) -> str:
-    """Strip any character not safe for filenames (path traversal prevention).""" 
-    return re.sub(r'[^a-zA-Z0-9._-]', '_', str(value))
+    """Strip any character not safe for filenames (path traversal prevention)."""
+    return re.sub(r"[^a-zA-Z0-9._-]", "_", str(value))
+
 
 def _explorer(network: str) -> Dict[str, str]:
     """Get explorer info for a network."""
@@ -36,16 +45,20 @@ def _explorer(network: str) -> Dict[str, str]:
         "arbitrum": {"name": "Arbiscan", "base": "https://arbiscan.io"},
         "polygon": {"name": "PolygonScan", "base": "https://polygonscan.com"},
         "base": {"name": "BaseScan", "base": "https://basescan.org"},
-        "optimism": {"name": "Optimistic Etherscan", "base": "https://optimistic.etherscan.io"},
+        "optimism": {
+            "name": "Optimistic Etherscan",
+            "base": "https://optimistic.etherscan.io",
+        },
         "bsc": {"name": "BscScan", "base": "https://bscscan.com"},
     }
     return explorers.get(network.lower(), {"name": "Explorer", "base": "#"})
+
 
 def _token_info(symbol: str) -> str:
     """Get display name for common tokens."""
     tokens = {
         "WETH": "Wrapped Ethereum",
-        "USDC": "USD Coin", 
+        "USDC": "USD Coin",
         "USDT": "Tether USD",
         "DAI": "Dai Stablecoin",
         "WBTC": "Wrapped Bitcoin",
@@ -53,9 +66,10 @@ def _token_info(symbol: str) -> str:
         "LINK": "Chainlink",
         "MATIC": "Polygon",
         "AAVE": "Aave Token",
-        "CRV": "Curve DAO Token"
+        "CRV": "Curve DAO Token",
     }
     return tokens.get(symbol.upper(), symbol or "Unknown Token")
+
 
 def _safe_num(val: Any, decimals: int = 2, default: float = 0) -> str:
     """Format a number with fixed decimals (no thousands separator). Use for token amounts, percentages, etc."""
@@ -64,6 +78,7 @@ def _safe_num(val: Any, decimals: int = 2, default: float = 0) -> str:
     except (ValueError, TypeError):
         return f"{default:.{decimals}f}"
 
+
 def _safe_usd(val: Any, decimals: int = 2, default: float = 0) -> str:
     """Format a number as USD with thousands separator ($1,234.56). Use for all dollar values."""
     try:
@@ -71,16 +86,17 @@ def _safe_usd(val: Any, decimals: int = 2, default: float = 0) -> str:
     except (ValueError, TypeError):
         return f"{default:,.{decimals}f}"
 
+
 def _build_audit_trail(data: Dict) -> str:
     """
     Build the Audit Trail HTML section.
-    
+
     An auditor can reproduce every number in this report by:
     1. Connecting to the same RPC endpoint
     2. Reading the same block number
     3. Making the same eth_call calls listed here
     4. Applying the same formulas (Whitepaper references provided)
-    
+
     If no audit_trail data exists (simulated mode), shows a notice.
     """
     audit = data.get("audit_trail")
@@ -102,10 +118,10 @@ def _build_audit_trail(data: Dict) -> str:
     raw_calls = audit.get("raw_calls", [])
     formulas = audit.get("formulas_applied", [])
     net = _safe((data.get("network") or "arbitrum").lower())
-    
+
     # Build explorer links
     explorer_base = _explorer(net).get("base", "")
-    block_link = f'{explorer_base}/block/{block}' if explorer_base and block else "#"
+    block_link = f"{explorer_base}/block/{block}" if explorer_base and block else "#"
 
     # Build raw calls table rows
     call_rows = ""
@@ -120,23 +136,26 @@ def _build_audit_trail(data: Dict) -> str:
             for k, v in decoded.items()
         )
         bg = "background: #f8fafc;" if i % 2 == 0 else ""
-        
+
         to_short = to_addr[:10] + "…" + to_addr[-4:] if len(to_addr) > 16 else to_addr
-        to_link = f'<a href="{explorer_base}/address/{to_addr}" target="_blank" style="color: #2563eb;">{to_short}</a>' if explorer_base else to_short
-        
+        to_link = (
+            f'<a href="{explorer_base}/address/{to_addr}" target="_blank" style="color: #2563eb;">{to_short}</a>'
+            if explorer_base
+            else to_short
+        )
+
         call_rows += f"""
         <tr style="{bg}">
-            <td style="padding: 6px 8px; font-weight: 600;">{i+1}. {label}</td>
+            <td style="padding: 6px 8px; font-weight: 600;">{i + 1}. {label}</td>
             <td style="padding: 6px 8px; font-family: monospace; font-size: 0.8rem;">{to_link}</td>
             <td style="padding: 6px 8px; font-family: monospace; font-size: 0.75rem; word-break: break-all;">{calldata}</td>
             <td style="padding: 6px 8px; font-size: 0.8rem;">{decoded_str}</td>
         </tr>
         """
-    
+
     # Build formulas list
     formula_items = "".join(
-        f'<li style="margin: 4px 0;"><code>{_safe(f)}</code></li>'
-        for f in formulas
+        f'<li style="margin: 4px 0;"><code>{_safe(f)}</code></li>' for f in formulas
     )
 
     # Contract addresses
@@ -254,57 +273,59 @@ def _build_audit_trail(data: Dict) -> str:
                 <h4 style="color: #854d0e; margin-top: 0;">🛠️ Verification Example (curl)</h4>
                 <pre style="background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.75rem; line-height: 1.5;"><code>curl -X POST {rpc} \\
   -H "Content-Type: application/json" \\
-  -d '{{"jsonrpc":"2.0","id":1,"method":"eth_call","params":[{{"to":"{pool_addr}","data":"{_safe(raw_calls[0].get('selector', '') if raw_calls else '')}"}},"{hex(block) if block else 'latest'}"]}}'</code></pre>
+  -d '{{"jsonrpc":"2.0","id":1,"method":"eth_call","params":[{{"to":"{pool_addr}","data":"{_safe(raw_calls[0].get("selector", "") if raw_calls else "")}"}},"{hex(block) if block else "latest"}"]}}'</code></pre>
                 <p style="font-size: 0.75rem; color: #92400e; margin-bottom: 0;">
-                    Replace <code>"latest"</code> with <code>"{hex(block) if block else '0x0'}"</code> to query the exact same block state.
+                    Replace <code>"latest"</code> with <code>"{hex(block) if block else "0x0"}"</code> to query the exact same block state.
                 </p>
             </div>
         </div>
     """
 
 
-def _render_strategies_visual(strategies_dict: Dict[str, Dict[str, Any]], data: Dict, t0: str, t1: str) -> str:
+def _render_strategies_visual(
+    strategies_dict: Dict[str, Dict[str, Any]], data: Dict, t0: str, t1: str
+) -> str:
     """Render strategies with visual gauges and comparison bars."""
     if not strategies_dict:
         return '<div class="tile"><p>Processing strategies...</p></div>'
-    
+
     strategy_html = ""
     colors = {
-        "conservative": {"primary": "#059669", "bg": "#dcfce7"},  
+        "conservative": {"primary": "#059669", "bg": "#dcfce7"},
         "moderate": {"primary": "#3b82f6", "bg": "#dbeafe"},
-        "aggressive": {"primary": "#dc2626", "bg": "#fee2e2"}
+        "aggressive": {"primary": "#dc2626", "bg": "#fee2e2"},
     }
-    
-    risk_icons = {
-        "conservative": "🛡️",
-        "moderate": "⚖️", 
-        "aggressive": "🚀"
-    }
-    
+
+    risk_icons = {"conservative": "🛡️", "moderate": "⚖️", "aggressive": "🚀"}
+
     for strategy_name in ["conservative", "moderate", "aggressive"]:
         strategy_data = strategies_dict.get(strategy_name, {})
         if not strategy_data:
             continue
-            
+
         color = colors[strategy_name]
         icon = risk_icons[strategy_name]
-        apy = strategy_data.get('apr_estimate', 0) * 100
-        range_min = strategy_data.get('lower_price', 0)  
-        range_max = strategy_data.get('upper_price', 0)
-        investment = data.get('total_value_usd', 0) if data.get('total_value_usd', 0) > 0 else strategy_data.get('total_value_usd', 10000)
-        risk_level = strategy_data.get('risk_level', 'Unknown')
-        description = strategy_data.get('description', 'No description')
-        range_width = strategy_data.get('range_width_pct', 0)
-        s_t0 = _safe(strategy_data.get('token0_symbol', t0))
-        s_t1 = _safe(strategy_data.get('token1_symbol', t1))
-        daily_est = strategy_data.get('daily_fees_est', 0)
-        weekly_est = strategy_data.get('weekly_fees_est', 0)
-        monthly_est = strategy_data.get('monthly_fees_est', 0)
-        annual_est = strategy_data.get('annual_fees_est', 0)
-        
+        apy = strategy_data.get("apr_estimate", 0) * 100
+        range_min = strategy_data.get("lower_price", 0)
+        range_max = strategy_data.get("upper_price", 0)
+        investment = (
+            data.get("total_value_usd", 0)
+            if data.get("total_value_usd", 0) > 0
+            else strategy_data.get("total_value_usd", 10000)
+        )
+        risk_level = strategy_data.get("risk_level", "Unknown")
+        description = strategy_data.get("description", "No description")
+        range_width = strategy_data.get("range_width_pct", 0)
+        s_t0 = _safe(strategy_data.get("token0_symbol", t0))
+        s_t1 = _safe(strategy_data.get("token1_symbol", t1))
+        daily_est = strategy_data.get("daily_fees_est", 0)
+        weekly_est = strategy_data.get("weekly_fees_est", 0)
+        monthly_est = strategy_data.get("monthly_fees_est", 0)
+        annual_est = strategy_data.get("annual_fees_est", 0)
+
         # Calculate gauge width based on APY (relative to max 15%)
         gauge_width = min((apy / 15.0) * 100, 100)
-        
+
         strategy_html += f'''
         <div class="tile" style="border-left: 4px solid {color["primary"]};">
             <div class="tile-header">
@@ -380,13 +401,13 @@ def _render_strategies_visual(strategies_dict: Dict[str, Dict[str, Any]], data: 
             </div>
         </div>
         '''
-    
+
     return strategy_html
 
 
 def _build_html(data: Dict) -> str:
     """Build HTML with 5 structured sections."""
-    
+
     # Basic data extraction
     t0 = _safe(data.get("token0_symbol", "Token0"))
     t1 = _safe(data.get("token1_symbol", "Token1"))
@@ -394,9 +415,11 @@ def _build_html(data: Dict) -> str:
     total_value = data.get("total_value_usd", 0)
     in_range = data.get("in_range", False)
     consent_ts = _safe(data.get("consent_timestamp", "Unknown"))
-    generated = _safe(data.get("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    generated = _safe(
+        data.get("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    )
     net = _safe((data.get("network") or "arbitrum").title())
-    
+
     # Local aliases for readability in f-string templates
     safe_num = _safe_num
     safe_usd = _safe_usd
@@ -408,18 +431,18 @@ def _build_html(data: Dict) -> str:
     hodl_fees_usd = hodl.get("fees_earned_usd", 0)
     hodl_net_lower = hodl.get("net_if_at_lower_usd", 0) or 0
     hodl_net_upper = hodl.get("net_if_at_upper_usd", 0) or 0
-    
+
     # Status formatting
     status_text_color = "#15803d" if in_range else "#dc2626"
-    status_bg = "#f0fdf4" if in_range else "#fef2f2" 
+    status_bg = "#f0fdf4" if in_range else "#fef2f2"
     status_border = "#bbf7d0" if in_range else "#fecaca"
     status_text = "● In Range" if in_range else "● Out of Range"
-    
+
     # Pool info
     pool_addr = _safe(data.get("pool_address", ""))
     t0_info = _token_info(data.get("token0_symbol", ""))
     t1_info = _token_info(data.get("token1_symbol", ""))
-    
+
     # Generate strategies section
     strategies = []
     if total_value > 0:
@@ -430,19 +453,21 @@ def _build_html(data: Dict) -> str:
                 <div class="strategy-card">
                     <h4>{strategy_name.title()}</h4>
                     <div class="strategy-details">
-                        <div><strong>Range:</strong> ${safe_usd(strategy_data.get('lower_price'), 2)} - ${safe_usd(strategy_data.get('upper_price'), 2)}</div>
-                        <div><strong>Initial Investment:</strong> ${safe_usd(strategy_data.get('total_value_usd'))}</div>
-                        <div><strong>Estimated APY:</strong> {safe_num(strategy_data.get('apr_estimate', 0) * 100, 1)}%</div>
-                        <div><strong>Risk Level:</strong> {strategy_data.get('risk_level', 'Unknown')}</div>
-                        <div><strong>Description:</strong> {strategy_data.get('description', 'No description')}</div>
+                        <div><strong>Range:</strong> ${safe_usd(strategy_data.get("lower_price"), 2)} - ${safe_usd(strategy_data.get("upper_price"), 2)}</div>
+                        <div><strong>Initial Investment:</strong> ${safe_usd(strategy_data.get("total_value_usd"))}</div>
+                        <div><strong>Estimated APY:</strong> {safe_num(strategy_data.get("apr_estimate", 0) * 100, 1)}%</div>
+                        <div><strong>Risk Level:</strong> {strategy_data.get("risk_level", "Unknown")}</div>
+                        <div><strong>Description:</strong> {strategy_data.get("description", "No description")}</div>
                     </div>
                 </div>
                 """)
 
-    strategies_html = "".join(strategies) if strategies else "<p>Loading strategy data...</p>"
-    
+    "".join(strategies) if strategies else "<p>Loading strategy data...</p>"
+
     # Generate visual strategies HTML
-    strategies_visual_html = _render_strategies_visual(data.get("strategies", {}), data, t0, t1)
+    strategies_visual_html = _render_strategies_visual(
+        data.get("strategies", {}), data, t0, t1
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -480,8 +505,8 @@ def _build_html(data: Dict) -> str:
             
             // Position price indicators
             const currentPrice = {safe_num(current_price, 6)};
-            const rangeMin = {safe_num(data.get('range_min', 0), 6)};
-            const rangeMax = {safe_num(data.get('range_max', 0), 6)};
+            const rangeMin = {safe_num(data.get("range_min", 0), 6)};
+            const rangeMax = {safe_num(data.get("range_max", 0), 6)};
             
             document.querySelectorAll('.current-price-indicator').forEach(indicator => {{
                 const position = calculatePricePosition(currentPrice, rangeMin, rangeMax);
@@ -498,7 +523,7 @@ def _build_html(data: Dict) -> str:
             <h2>{t0}/{t1} · {net}</h2>
             <div class="status-badge">{status_text}</div>
             <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-light);">
-                {data.get('dex_name', 'Uniswap V3')} · {data.get('protocol_version', 'v3').upper()} · Concentrated Liquidity
+                {data.get("dex_name", "Uniswap V3")} · {data.get("protocol_version", "v3").upper()} · Concentrated Liquidity
             </div>
         </div>
 
@@ -514,7 +539,7 @@ def _build_html(data: Dict) -> str:
         <div class="session">
             <h2 class="session-title">📊 Session 1: Your Position</h2>
             
-            {'<div style="background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>🔗 Data Source:</strong> Real on-chain data via {} RPC · {} · Position NFT #{}</div>'.format(data.get('network', 'Arbitrum').title(), data.get('dex_name', 'Uniswap V3'), data.get('position_id', '')) if data.get('data_source') == 'on-chain' else '<div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>⚠️ Data Source:</strong> Simulated position ($10K capital). Use <code>--position &lt;id&gt;</code> for real data.</div>'}
+            {'<div style="background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>🔗 Data Source:</strong> Real on-chain data via {} RPC · {} · Position NFT #{}</div>'.format(data.get("network", "Arbitrum").title(), data.get("dex_name", "Uniswap V3"), data.get("position_id", "")) if data.get("data_source") == "on-chain" else '<div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;"><strong>⚠️ Data Source:</strong> Simulated position ($10K capital). Use <code>--position &lt;id&gt;</code> for real data.</div>'}
 
             <!-- Position Value Card -->
             <div class="tile" style="border-left: 4px solid var(--primary);">
@@ -522,7 +547,7 @@ def _build_html(data: Dict) -> str:
                     <div class="tile-icon">💰</div>
                     <div>
                         <div class="tile-title">Position Value</div>
-                        <div style="font-size: 0.875rem; color: var(--text-light);">{'On-chain balances' if data.get('data_source') == 'on-chain' else 'Simulated balances'}</div>
+                        <div style="font-size: 0.875rem; color: var(--text-light);">{"On-chain balances" if data.get("data_source") == "on-chain" else "Simulated balances"}</div>
                     </div>
                 </div>
                 <div class="comparison-value" style="color: var(--primary); font-size: 2rem;">${safe_usd(total_value)}</div>
@@ -531,21 +556,21 @@ def _build_html(data: Dict) -> str:
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                     <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border: 1px solid #bfdbfe;">
                         <div style="font-size: 0.8rem; color: var(--text-light);">{t0}</div>
-                        <div style="font-size: 1.25rem; font-weight: 600;">{safe_num(data.get('token0_amount', 0), 6)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 600;">{safe_num(data.get("token0_amount", 0), 6)}</div>
                         <div style="display: flex; justify-content: space-between; margin-top: 0.25rem;">
-                            <span style="color: var(--primary); font-weight: 500;">${safe_usd(data.get('token0_value_usd', 0))}</span>
-                            <span style="color: var(--text-light);">{safe_num(data.get('token0_pct', 0), 1)}%</span>
+                            <span style="color: var(--primary); font-weight: 500;">${safe_usd(data.get("token0_value_usd", 0))}</span>
+                            <span style="color: var(--text-light);">{safe_num(data.get("token0_pct", 0), 1)}%</span>
                         </div>
-                        <div class="progress-bar" style="margin-top: 0.5rem;"><div class="progress-fill" data-width="{safe_num(data.get('token0_pct', 0), 0)}"></div></div>
+                        <div class="progress-bar" style="margin-top: 0.5rem;"><div class="progress-fill" data-width="{safe_num(data.get("token0_pct", 0), 0)}"></div></div>
                     </div>
                     <div style="background: #fefce8; padding: 1rem; border-radius: 8px; border: 1px solid #fef08a;">
                         <div style="font-size: 0.8rem; color: var(--text-light);">{t1}</div>
-                        <div style="font-size: 1.25rem; font-weight: 600;">{safe_num(data.get('token1_amount', 0), 6)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 600;">{safe_num(data.get("token1_amount", 0), 6)}</div>
                         <div style="display: flex; justify-content: space-between; margin-top: 0.25rem;">
-                            <span style="color: #d97706; font-weight: 500;">${safe_usd(data.get('token1_value_usd', 0))}</span>
-                            <span style="color: var(--text-light);">{safe_num(data.get('token1_pct', 0), 1)}%</span>
+                            <span style="color: #d97706; font-weight: 500;">${safe_usd(data.get("token1_value_usd", 0))}</span>
+                            <span style="color: var(--text-light);">{safe_num(data.get("token1_pct", 0), 1)}%</span>
                         </div>
-                        <div class="progress-bar" style="margin-top: 0.5rem;"><div class="progress-fill" data-width="{safe_num(data.get('token1_pct', 0), 0)}" style="background: #d97706;"></div></div>
+                        <div class="progress-bar" style="margin-top: 0.5rem;"><div class="progress-fill" data-width="{safe_num(data.get("token1_pct", 0), 0)}" style="background: #d97706;"></div></div>
                     </div>
                 </div>
             </div>
@@ -556,10 +581,10 @@ def _build_html(data: Dict) -> str:
                     <div class="tile-icon" style="background: linear-gradient(135deg, #16a34a, #15803d);">💸</div>
                     <div>
                         <div class="tile-title">Uncollected Fees</div>
-                        <div style="font-size: 0.875rem; color: var(--text-light);">{'Computed from on-chain feeGrowth data' if data.get('data_source') == 'on-chain' else 'Estimated from pool volume'}</div>
+                        <div style="font-size: 0.875rem; color: var(--text-light);">{"Computed from on-chain feeGrowth data" if data.get("data_source") == "on-chain" else "Estimated from pool volume"}</div>
                     </div>
                 </div>
-                <div class="comparison-value" style="color: #16a34a; font-size: 1.5rem;">${safe_usd(data.get('fees_earned_usd', 0), 2)}</div>
+                <div class="comparison-value" style="color: #16a34a; font-size: 1.5rem;">${safe_usd(data.get("fees_earned_usd", 0), 2)}</div>
                 <div style="font-size: 0.75rem; color: #92400e; margin-top: 0.25rem;">⚠️ On-chain fees have ±2-5% variance until actual collection (feeGrowth rounding + block timing)</div>
             </div>
 
@@ -569,26 +594,26 @@ def _build_html(data: Dict) -> str:
                     <div class="tile-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">📅</div>
                     <div>
                         <div class="tile-title">Fee Earnings Projections (Current Position)</div>
-                        <div style="font-size: 0.875rem; color: var(--text-light);">Based on Pool APR ({safe_num(data.get('pool_apr_estimate', 0), 1)}%) applied to your position value</div>
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Based on Pool APR ({safe_num(data.get("pool_apr_estimate", 0), 1)}%) applied to your position value</div>
                     </div>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                     <div style="background: #f5f3ff; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #ddd6fe;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">Daily</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #8b5cf6;">${safe_usd(data.get('daily_fees_est', 0), 2)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #8b5cf6;">${safe_usd(data.get("daily_fees_est", 0), 2)}</div>
                     </div>
                     <div style="background: #f5f3ff; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #ddd6fe;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">Weekly</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #8b5cf6;">${safe_usd(data.get('weekly_fees_est', 0), 2)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #8b5cf6;">${safe_usd(data.get("weekly_fees_est", 0), 2)}</div>
                     </div>
                     <div style="background: #f5f3ff; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #ddd6fe;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">Monthly</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #7c3aed;">${safe_usd(data.get('monthly_fees_est', 0), 2)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #7c3aed;">${safe_usd(data.get("monthly_fees_est", 0), 2)}</div>
                     </div>
                     <div style="background: #f5f3ff; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #ddd6fe;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">Annual</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #6d28d9;">${safe_usd(data.get('annual_fees_est', 0), 2)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #6d28d9;">${safe_usd(data.get("annual_fees_est", 0), 2)}</div>
                     </div>
                 </div>
                 
@@ -596,12 +621,12 @@ def _build_html(data: Dict) -> str:
                     <strong>⚠️ THEORETICAL estimate based on today's 24h volume snapshot.</strong> 
                     Actual avg daily fees may differ by 20–30% due to volume fluctuations. 
                     Fee APR does NOT account for <strong>impermanent loss (IL)</strong> — your total PnL may be negative even with high fee earnings.
-                    Position APR (fees only): <strong>{safe_num(data.get('position_apr_est', data.get('annual_apy_est', 0)), 1)}%</strong>
+                    Position APR (fees only): <strong>{safe_num(data.get("position_apr_est", data.get("annual_apy_est", 0)), 1)}%</strong>
                 </div>
                 
                 <div style="background: #f0fdf4; padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem; font-size: 0.8rem; color: #166534; border: 1px solid #bbf7d0;">
                     <strong>🔍 Cross-validate your data:</strong> 
-                    <a href="https://revert.finance/#/account/{_safe(data.get('wallet_address', ''))}" target="_blank" style="color: #15803d; font-weight: 600;">Revert.finance</a> 
+                    <a href="https://revert.finance/#/account/{_safe(data.get("wallet_address", ""))}" target="_blank" style="color: #15803d; font-weight: 600;">Revert.finance</a> 
                     shows real historical fees, PnL, divergence loss, and invested amounts for your position.
                     Compare their <em>avg daily fees</em> and <em>total PnL</em> with these projections.
                 </div>
@@ -614,7 +639,7 @@ def _build_html(data: Dict) -> str:
                         <div class="tile-icon">⚡</div>
                         <div class="tile-title">Liquidity (L)</div>
                     </div>
-                    <div class="comparison-value" style="color: #22c55e;">{safe_num(data.get('liquidity', 0), 0)}</div>
+                    <div class="comparison-value" style="color: #22c55e;">{safe_num(data.get("liquidity", 0), 0)}</div>
                     <div class="comparison-label">Whitepaper §6.2: L = Δx·√(Pa·Pb)/(√Pb−√Pa)</div>
                 </div>
                 
@@ -623,7 +648,7 @@ def _build_html(data: Dict) -> str:
                         <div class="tile-icon">🎯</div>
                         <div class="tile-title">Fee Tier</div>
                     </div>
-                    <div class="comparison-value" style="color: #f59e0b;">{data.get('fee_tier_label', safe_num(data.get('fee_tier', 3000)))}</div>
+                    <div class="comparison-value" style="color: #f59e0b;">{data.get("fee_tier_label", safe_num(data.get("fee_tier", 3000)))}</div>
                     <div class="comparison-label"><a href="https://docs.uniswap.org/concepts/protocol/fees" style="color: var(--text-light);">Uniswap Fee Tiers</a></div>
                 </div>
                 
@@ -632,7 +657,7 @@ def _build_html(data: Dict) -> str:
                         <div class="tile-icon">📐</div>
                         <div class="tile-title">Capital Efficiency</div>
                     </div>
-                    <div class="comparison-value" style="color: #dc2626;">{safe_num(data.get('capital_efficiency_vs_v2', 1), 1)}× vs V2</div>
+                    <div class="comparison-value" style="color: #dc2626;">{safe_num(data.get("capital_efficiency_vs_v2", 1), 1)}× vs V2</div>
                     <div class="comparison-label">Whitepaper §2: 1/(1−√(Pa/Pb))</div>
                 </div>
             </div>
@@ -646,7 +671,7 @@ def _build_html(data: Dict) -> str:
             <!-- Pool APR Highlight -->
             <div class="apy-display">
                 <h3 style="margin-top: 0; color: #d97706;">Pool APR (Estimated)</h3>
-                <div class="apy-value">{safe_num(data.get('pool_apr_estimate', data.get('annual_apy_est', 0)), 1)}%</div>
+                <div class="apy-value">{safe_num(data.get("pool_apr_estimate", data.get("annual_apy_est", 0)), 1)}%</div>
                 <p style="margin-bottom: 0; color: #78350f;">Formula: (Volume 24h × Fee Tier × 365) / TVL × 100<br>
                 <span style="font-size: 0.8rem;">Ref: <a href="https://docs.uniswap.org/concepts/protocol/fees" style="color: #92400e;">Uniswap V3 Fee Distribution</a></span></p>
             </div>
@@ -658,7 +683,7 @@ def _build_html(data: Dict) -> str:
                         <div class="tile-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">📊</div>
                         <div class="tile-title">24h Volume</div>
                     </div>
-                    <div class="comparison-value" style="color: #3b82f6;">${safe_usd(data.get('volume_24h', 0))}</div>
+                    <div class="comparison-value" style="color: #3b82f6;">${safe_usd(data.get("volume_24h", 0))}</div>
                     <div class="comparison-label">On-chain swap transactions (24h)</div>
                 </div>
                 
@@ -667,7 +692,7 @@ def _build_html(data: Dict) -> str:
                         <div class="tile-icon" style="background: linear-gradient(135deg, #059669, #047857);">🏦</div>
                         <div class="tile-title">Pool TVL</div>
                     </div>
-                    <div class="comparison-value" style="color: #059669;">${safe_usd(data.get('total_value_locked_usd', 0))}</div>
+                    <div class="comparison-value" style="color: #059669;">${safe_usd(data.get("total_value_locked_usd", 0))}</div>
                     <div class="comparison-label">Total Value Locked (pool reserves)</div>
                 </div>
                 
@@ -676,8 +701,8 @@ def _build_html(data: Dict) -> str:
                         <div class="tile-icon" style="background: linear-gradient(135deg, #d97706, #b45309);">💸</div>
                         <div class="tile-title">24h Fees (Pool)</div>
                     </div>
-                    <div class="comparison-value" style="color: #d97706;">${safe_usd(data.get('pool_24h_fees_est', 0))}</div>
-                    <div class="comparison-label">Volume × Fee Tier ({data.get('fee_tier_label', '0.05%')})</div>
+                    <div class="comparison-value" style="color: #d97706;">${safe_usd(data.get("pool_24h_fees_est", 0))}</div>
+                    <div class="comparison-label">Volume × Fee Tier ({data.get("fee_tier_label", "0.05%")})</div>
                 </div>
             </div>
 
@@ -691,13 +716,13 @@ def _build_html(data: Dict) -> str:
                     </div>
                 </div>
                 <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.5rem;">
-                    <div style="font-size: 2rem; font-weight: 700; color: #7c3aed;">{safe_num(data.get('vol_tvl_ratio', 0), 4)}×</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #7c3aed;">{safe_num(data.get("vol_tvl_ratio", 0), 4)}×</div>
                     <div style="font-size: 0.875rem; color: var(--text-light);">
-                        {'🔥 High efficiency' if (data.get('vol_tvl_ratio') or 0) >= 0.3 else '⚖️ Normal' if (data.get('vol_tvl_ratio') or 0) >= 0.1 else '💤 Low activity'}
+                        {"🔥 High efficiency" if (data.get("vol_tvl_ratio") or 0) >= 0.3 else "⚖️ Normal" if (data.get("vol_tvl_ratio") or 0) >= 0.1 else "💤 Low activity"}
                     </div>
                 </div>
                 <div class="progress-bar" style="margin-top: 0.5rem; height: 8px;">
-                    <div class="progress-fill" data-width="{min((data.get('vol_tvl_ratio', 0) or 0) / 0.5 * 100, 100):.0f}" style="background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
+                    <div class="progress-fill" data-width="{min((data.get("vol_tvl_ratio", 0) or 0) / 0.5 * 100, 100):.0f}" style="background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">
                     Benchmarks: &lt;0.1× low · 0.1-0.3× normal · &gt;0.3× high efficiency
@@ -732,7 +757,7 @@ def _build_html(data: Dict) -> str:
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                     <div style="text-align: left;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">Min Price (Lower Bound)</div>
-                        <div style="font-size: 1.2rem; font-weight: 700; color: #ef4444;">${safe_usd(data.get('range_min'), 2)}</div>
+                        <div style="font-size: 1.2rem; font-weight: 700; color: #ef4444;">${safe_usd(data.get("range_min"), 2)}</div>
                         <div style="font-size: 0.8rem; color: var(--text-light);">{t1} per {t0}</div>
                         <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">Below this → 100% {t0}, 0% {t1}</div>
                     </div>
@@ -740,11 +765,11 @@ def _build_html(data: Dict) -> str:
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">Market Price (Current)</div>
                         <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary);">${safe_usd(current_price, 2)}</div>
                         <div style="font-size: 0.8rem; color: var(--text-light);">{t1} per {t0}</div>
-                        <div class="status-indicator {'status-in-range' if in_range else 'status-out-range'}" style="margin-top: 0.5rem; font-size: 0.75rem;">{status_text}</div>
+                        <div class="status-indicator {"status-in-range" if in_range else "status-out-range"}" style="margin-top: 0.5rem; font-size: 0.75rem;">{status_text}</div>
                     </div>
                     <div style="text-align: right;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">Max Price (Upper Bound)</div>
-                        <div style="font-size: 1.2rem; font-weight: 700; color: #16a34a;">${safe_usd(data.get('range_max'), 2)}</div>
+                        <div style="font-size: 1.2rem; font-weight: 700; color: #16a34a;">${safe_usd(data.get("range_max"), 2)}</div>
                         <div style="font-size: 0.8rem; color: var(--text-light);">{t1} per {t0}</div>
                         <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">Above this → 0% {t0}, 100% {t1}</div>
                     </div>
@@ -752,10 +777,10 @@ def _build_html(data: Dict) -> str:
                 
                 <div style="background: #f8fafc; padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.8rem; color: var(--text-light);">
                     <strong>📐 Range Analysis:</strong>
-                    Range width: <strong>{safe_num(data.get('range_width_pct', 0), 1)}%</strong> of current price · 
-                    Downside buffer: {safe_num(data.get('downside_buffer_pct', 0), 1)}% · 
-                    Upside buffer: {safe_num(data.get('upside_buffer_pct', 0), 1)}% · 
-                    Strategy: <strong>{_safe(data.get('current_strategy', 'moderate')).title()}</strong> · 
+                    Range width: <strong>{safe_num(data.get("range_width_pct", 0), 1)}%</strong> of current price · 
+                    Downside buffer: {safe_num(data.get("downside_buffer_pct", 0), 1)}% · 
+                    Upside buffer: {safe_num(data.get("upside_buffer_pct", 0), 1)}% · 
+                    Strategy: <strong>{_safe(data.get("current_strategy", "moderate")).title()}</strong> · 
                     Source: <a href="https://uniswap.org/whitepaper-v3.pdf" style="color: var(--primary);">Whitepaper §6.1 (Tick-Price)</a>
                 </div>
             </div>
@@ -773,20 +798,20 @@ def _build_html(data: Dict) -> str:
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                     <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">If Price → Lower Bound</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: #dc2626;">{safe_num(data.get('il_at_lower_v3_pct', 0), 1)}%</div>
-                        <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">V2 equivalent: {safe_num(data.get('il_at_lower_v2_pct', 0), 1)}%</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #dc2626;">{safe_num(data.get("il_at_lower_v3_pct", 0), 1)}%</div>
+                        <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">V2 equivalent: {safe_num(data.get("il_at_lower_v2_pct", 0), 1)}%</div>
                         <div style="font-size: 0.8rem; color: #991b1b; margin-top: 0.25rem;">${safe_usd(hodl_il_lower_usd)}</div>
                     </div>
                     <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;">If Price → Upper Bound</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: #dc2626;">{safe_num(data.get('il_at_upper_v3_pct', 0), 1)}%</div>
-                        <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">V2 equivalent: {safe_num(data.get('il_at_upper_v2_pct', 0), 1)}%</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #dc2626;">{safe_num(data.get("il_at_upper_v3_pct", 0), 1)}%</div>
+                        <div style="font-size: 0.75rem; color: var(--text-light); margin-top: 0.25rem;">V2 equivalent: {safe_num(data.get("il_at_upper_v2_pct", 0), 1)}%</div>
                         <div style="font-size: 0.8rem; color: #991b1b; margin-top: 0.25rem;">${safe_usd(hodl_il_upper_usd)}</div>
                     </div>
                 </div>
                 
                 <div style="background: #fff7ed; padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem; font-size: 0.8rem; color: #9a3412; border: 1px solid #fed7aa;">
-                    <strong>📐 V3 IL Formula:</strong> IL_v3 = IL_v2 × Capital Efficiency ({safe_num(data.get('capital_efficiency_vs_v2', 1), 1)}×). 
+                    <strong>📐 V3 IL Formula:</strong> IL_v3 = IL_v2 × Capital Efficiency ({safe_num(data.get("capital_efficiency_vs_v2", 1), 1)}×). 
                     Concentrated liquidity amplifies both fees AND losses. 
                     <a href="https://pintail.medium.com/uniswap-a-good-deal-for-liquidity-providers-104c0b6816f2" style="color: #9a3412;">Pintail IL Formula</a> · 
                     <a href="https://uniswap.org/whitepaper-v3.pdf" style="color: #9a3412;">Whitepaper §2</a>
@@ -810,12 +835,12 @@ def _build_html(data: Dict) -> str:
                     </div>
                     <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase;">Net if at Lower</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: {'#16a34a' if hodl_net_lower >= 0 else '#dc2626'};">${safe_usd(hodl_net_lower)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: {"#16a34a" if hodl_net_lower >= 0 else "#dc2626"};">${safe_usd(hodl_net_lower)}</div>
                         <div style="font-size: 0.7rem; color: var(--text-light);">Fees + IL at lower bound</div>
                     </div>
                     <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fecaca;">
                         <div style="font-size: 0.75rem; color: var(--text-light); text-transform: uppercase;">Net if at Upper</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: {'#16a34a' if hodl_net_upper >= 0 else '#dc2626'};">${safe_usd(hodl_net_upper)}</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: {"#16a34a" if hodl_net_upper >= 0 else "#dc2626"};">${safe_usd(hodl_net_upper)}</div>
                         <div style="font-size: 0.7rem; color: var(--text-light);">Fees + IL at upper bound</div>
                     </div>
                 </div>
@@ -825,7 +850,7 @@ def _build_html(data: Dict) -> str:
                     Positive net = fees exceed IL → LP is profitable vs HODL.
                     Negative net = IL exceeds fees → HODL would have been better.
                     This is a <strong>snapshot estimate</strong> — for real historical PnL, use 
-                    <a href="https://revert.finance/#/account/{_safe(data.get('wallet_address', ''))}" style="color: #1d4ed8;">Revert.finance</a>.
+                    <a href="https://revert.finance/#/account/{_safe(data.get("wallet_address", ""))}" style="color: #1d4ed8;">Revert.finance</a>.
                 </div>
             </div>
             
@@ -857,8 +882,8 @@ def _build_html(data: Dict) -> str:
                             </div>
                             <div class="comparison-label" style="line-height: 1.5;">
                                 <strong>What:</strong> Price divergence between {t0} and {t1} causes value loss vs holding. In concentrated V3 positions, this is called <em>divergence loss</em> and can be much larger than V2 IL.<br>
-                                <strong>Your exposure:</strong> Concentrated range ({safe_num(data.get('range_min'), 0)}–{safe_num(data.get('range_max'), 0)}) amplifies IL by {safe_num(data.get('capital_efficiency_vs_v2', 1), 1)}×. <strong style="color: #dc2626;">Divergence loss often exceeds fee earnings — total PnL can be NEGATIVE even with high fee APR.</strong><br>
-                                <strong>Verify:</strong> Check your real PnL on <a href="https://revert.finance/#/account/{_safe(data.get('wallet_address', ''))}" style="color: var(--primary);">Revert.finance</a> (shows divergence loss, total PnL, fees vs IL).<br>
+                                <strong>Your exposure:</strong> Concentrated range ({safe_num(data.get("range_min"), 0)}–{safe_num(data.get("range_max"), 0)}) amplifies IL by {safe_num(data.get("capital_efficiency_vs_v2", 1), 1)}×. <strong style="color: #dc2626;">Divergence loss often exceeds fee earnings — total PnL can be NEGATIVE even with high fee APR.</strong><br>
+                                <strong>Verify:</strong> Check your real PnL on <a href="https://revert.finance/#/account/{_safe(data.get("wallet_address", ""))}" style="color: var(--primary);">Revert.finance</a> (shows divergence loss, total PnL, fees vs IL).<br>
                                 <strong>Source:</strong> <a href="https://pintail.medium.com/uniswap-a-good-deal-for-liquidity-providers-104c0b6816f2" style="color: var(--primary);">Pintail IL Formula</a> · <a href="https://uniswap.org/whitepaper-v3.pdf" style="color: var(--primary);">Whitepaper §2</a>
                             </div>
                         </div>
@@ -870,7 +895,7 @@ def _build_html(data: Dict) -> str:
                             </div>
                             <div class="comparison-label" style="line-height: 1.5;">
                                 <strong>What:</strong> If price exits your range, you earn zero fees and hold 100% of one token.<br>
-                                <strong>Your exposure:</strong> Downside {safe_num(data.get('downside_buffer_pct', 0), 1)}% buffer, upside {safe_num(data.get('upside_buffer_pct', 0), 1)}% buffer from current price.<br>
+                                <strong>Your exposure:</strong> Downside {safe_num(data.get("downside_buffer_pct", 0), 1)}% buffer, upside {safe_num(data.get("upside_buffer_pct", 0), 1)}% buffer from current price.<br>
                                 <strong>Source:</strong> <a href="https://docs.uniswap.org/concepts/protocol/concentrated-liquidity" style="color: var(--primary);">Uniswap Concentrated Liquidity Docs</a>
                             </div>
                         </div>
@@ -942,11 +967,11 @@ def _build_html(data: Dict) -> str:
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td style="padding: 5px 8px;">🟢 <strong>Revert.finance</strong></td><td style="padding: 5px 8px;">V3 position PnL, divergence loss, historical fees, APR</td><td style="padding: 5px 8px;"><a href="https://revert.finance/#/account/{_safe(data.get('wallet_address', ''))}" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
-                        <tr style="background: #fffef0;"><td style="padding: 5px 8px;">🟡 <strong>Zerion</strong></td><td style="padding: 5px 8px;">Full wallet balance, all DeFi positions, P&L</td><td style="padding: 5px 8px;"><a href="https://app.zerion.io/{_safe(data.get('wallet_address', ''))}/overview" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
-                        <tr><td style="padding: 5px 8px;">🟡 <strong>Zapper</strong></td><td style="padding: 5px 8px;">Portfolio tracker, DeFi positions, yields</td><td style="padding: 5px 8px;"><a href="https://zapper.xyz/account/{_safe(data.get('wallet_address', ''))}?tab=apps" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
-                        <tr style="background: #fffef0;"><td style="padding: 5px 8px;">🟡 <strong>DeBank</strong></td><td style="padding: 5px 8px;">Multi-chain portfolio, protocol breakdown</td><td style="padding: 5px 8px;"><a href="https://debank.com/profile/{_safe(data.get('wallet_address', ''))}" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
-                        <tr><td style="padding: 5px 8px;">🔵 <strong>Uniswap App</strong></td><td style="padding: 5px 8px;">Official interface — manage, collect fees, rebalance</td><td style="padding: 5px 8px;"><a href="https://app.uniswap.org/positions/v3/{net.lower()}/{_safe(str(data.get('position_id', '')))}" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
+                        <tr><td style="padding: 5px 8px;">🟢 <strong>Revert.finance</strong></td><td style="padding: 5px 8px;">V3 position PnL, divergence loss, historical fees, APR</td><td style="padding: 5px 8px;"><a href="https://revert.finance/#/account/{_safe(data.get("wallet_address", ""))}" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
+                        <tr style="background: #fffef0;"><td style="padding: 5px 8px;">🟡 <strong>Zerion</strong></td><td style="padding: 5px 8px;">Full wallet balance, all DeFi positions, P&L</td><td style="padding: 5px 8px;"><a href="https://app.zerion.io/{_safe(data.get("wallet_address", ""))}/overview" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
+                        <tr><td style="padding: 5px 8px;">🟡 <strong>Zapper</strong></td><td style="padding: 5px 8px;">Portfolio tracker, DeFi positions, yields</td><td style="padding: 5px 8px;"><a href="https://zapper.xyz/account/{_safe(data.get("wallet_address", ""))}?tab=apps" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
+                        <tr style="background: #fffef0;"><td style="padding: 5px 8px;">🟡 <strong>DeBank</strong></td><td style="padding: 5px 8px;">Multi-chain portfolio, protocol breakdown</td><td style="padding: 5px 8px;"><a href="https://debank.com/profile/{_safe(data.get("wallet_address", ""))}" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
+                        <tr><td style="padding: 5px 8px;">🔵 <strong>Uniswap App</strong></td><td style="padding: 5px 8px;">Official interface — manage, collect fees, rebalance</td><td style="padding: 5px 8px;"><a href="https://app.uniswap.org/positions/v3/{net.lower()}/{_safe(str(data.get("position_id", "")))}" target="_blank" style="color: #2563eb;">Open →</a></td></tr>
                     </tbody>
                 </table>
                 <p style="font-size: 0.8rem; color: #92400e; margin-bottom: 0; margin-top: 0.75rem;">
@@ -982,7 +1007,7 @@ def _build_html(data: Dict) -> str:
                     <div><strong>Blockchain Endpoints:</strong></div>
                     <div style="font-size: 0.875rem;">
                         • <strong>{net}:</strong> Official RPC<br>
-                        • <strong>Explorer:</strong> {_explorer(net.lower()).get('name', 'Scanner')}<br>
+                        • <strong>Explorer:</strong> {_explorer(net.lower()).get("name", "Scanner")}<br>
                         • <strong>Graph Protocol:</strong> On-chain indexing<br>
                         • <strong>IPFS:</strong> Decentralized metadata
                     </div>
@@ -1018,7 +1043,7 @@ def _build_html(data: Dict) -> str:
                 
                 <div class="metric-card">
                     <div><strong>Fee Tier:</strong></div>
-                    <div>{data.get('fee_tier_label', safe_num(data.get('fee_tier', 3000)))} • Protocol Fee Split<br>LP Fee Distribution</div>
+                    <div>{data.get("fee_tier_label", safe_num(data.get("fee_tier", 3000)))} • Protocol Fee Split<br>LP Fee Distribution</div>
                 </div>
             </div>
             
@@ -1068,7 +1093,7 @@ def _build_html(data: Dict) -> str:
                     <li><strong>Whitepaper:</strong> <a href="https://uniswap.org/whitepaper-v3.pdf" target="_blank">uniswap.org/whitepaper-v3.pdf</a> — §2 Concentrated Liquidity, §6.1-6.3 Tick Math</li>
                     <li><strong>SDK Source:</strong> <a href="https://github.com/Uniswap/v3-sdk" target="_blank">github.com/Uniswap/v3-sdk</a> — reference implementation</li>
                     <li><strong>Deployments:</strong> <a href="https://docs.uniswap.org/contracts/v3/reference/deployments/" target="_blank">docs.uniswap.org/contracts/v3/reference/deployments</a></li>
-                    {'<li><strong>Your Position:</strong> <a href="https://app.uniswap.org/positions/v3/{}/{}" target="_blank">app.uniswap.org/positions/v3/{}/{}</a></li>'.format(net.lower(), data.get('position_id', ''), net.lower(), data.get('position_id', '')) if data.get('position_id') else ''}
+                    {'<li><strong>Your Position:</strong> <a href="https://app.uniswap.org/positions/v3/{}/{}" target="_blank">app.uniswap.org/positions/v3/{}/{}</a></li>'.format(net.lower(), data.get("position_id", ""), net.lower(), data.get("position_id", "")) if data.get("position_id") else ""}
                     <li><strong>Pool:</strong> <a href="https://app.uniswap.org/explore/pools/{net.lower()}/{pool_addr}" target="_blank">app.uniswap.org/explore/pools/{pool_addr[:16]}…</a></li>
                 </ul>
             </div>
@@ -1208,7 +1233,7 @@ def _build_html(data: Dict) -> str:
                 <div class="metric-grid" style="gap: 0.5rem;">
                     <div>• <a href="https://app.uniswap.org" target="_blank" style="color: #2563eb;">Official Uniswap Interface</a></div>
                     <div>• <a href="https://dexscreener.com" target="_blank" style="color: #2563eb;">DEXScreener Platform</a></div>
-                    <div>• <a href="{_explorer(net.lower()).get('base', '#')}" target="_blank" style="color: #2563eb;">{_explorer(net.lower()).get('name', 'Blockchain')} Explorer</a></div>
+                    <div>• <a href="{_explorer(net.lower()).get("base", "#")}" target="_blank" style="color: #2563eb;">{_explorer(net.lower()).get("name", "Blockchain")} Explorer</a></div>
                     <div>• <a href="https://github.com" target="_blank" style="color: #2563eb;">Open Source Repository</a></div>
                 </div>
                 
@@ -1241,13 +1266,12 @@ def _build_html(data: Dict) -> str:
 </html>"""
 
 
-def generate_position_report(data: Dict[str, Any],
-                             _open_browser: bool = True) -> Path:
+def generate_position_report(data: Dict[str, Any], _open_browser: bool = True) -> Path:
     """Generate HTML report as a temporary file and open in browser.
-    
+
     The report is created as a temporary file — nothing is persisted unless
     the user explicitly saves from the browser (Ctrl+S / ⌘+S).
-    
+
     Privacy: no cookies, no saved files, no retained data.
     ⚠️ Reports contain financial data — a disclaimer banner is always shown.
     """
@@ -1262,8 +1286,12 @@ def generate_position_report(data: Dict[str, Any],
 
     # Temporary file — persists in OS temp dir until session/reboot
     tmp = tempfile.NamedTemporaryFile(
-        mode='w', suffix=f'_{filename}', prefix='defi_cli_',
-        dir=tempfile.gettempdir(), delete=False, encoding='utf-8',
+        mode="w",
+        suffix=f"_{filename}",
+        prefix="defi_cli_",
+        dir=tempfile.gettempdir(),
+        delete=False,
+        encoding="utf-8",
     )
     tmp.write(html_content)
     tmp.close()

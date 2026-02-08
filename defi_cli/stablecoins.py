@@ -19,35 +19,55 @@ Reference:
   - 1.00% (10000)→ exotic / low-liquidity pairs
 """
 
-from typing import Tuple
 
 # ── Known Stablecoin Symbols ────────────────────────────────────────────
 # Normalized to uppercase. Includes bridged variants (.e, .b, etc.)
 # Sources: CoinGecko stablecoin category, DeFiLlama stablecoin tracker.
 
-STABLECOIN_SYMBOLS: frozenset = frozenset({
-    # USD-pegged — major
-    "USDC", "USDT", "DAI", "BUSD", "TUSD", "FRAX", "LUSD",
-    "USDP", "GUSD", "SUSD", "CUSD", "USDD", "PYUSD", "GHO",
-    "FDUSD", "CRVUSD", "MKUSD",
-
-    # USD-pegged — bridged variants
-    "USDC.E", "USDT.E", "DAI.E",        # Avalanche / Polygon bridged
-    "USDBC", "USDCE",                     # Base variants
-    "AXLUSDC",                             # Axelar-bridged USDC
-
-    # EUR-pegged (treated as stable for pair classification)
-    "EURS", "EURT", "AGEUR", "CEUR", "EURC",
-
-    # GBP-pegged
-    "GBPT",
-
-    # Algorithmic / CDP stables
-    "MIM", "DOLA", "ALUSD", "USDS",
-
-    # Rebasing / yield-bearing stables
-    "OUSD",
-})
+STABLECOIN_SYMBOLS: frozenset = frozenset(
+    {
+        # USD-pegged — major
+        "USDC",
+        "USDT",
+        "DAI",
+        "BUSD",
+        "TUSD",
+        "FRAX",
+        "LUSD",
+        "USDP",
+        "GUSD",
+        "SUSD",
+        "CUSD",
+        "USDD",
+        "PYUSD",
+        "GHO",
+        "FDUSD",
+        "CRVUSD",
+        "MKUSD",
+        # USD-pegged — bridged variants
+        "USDC.E",
+        "USDT.E",
+        "DAI.E",  # Avalanche / Polygon bridged
+        "USDBC",
+        "USDCE",  # Base variants
+        "AXLUSDC",  # Axelar-bridged USDC
+        # EUR-pegged (treated as stable for pair classification)
+        "EURS",
+        "EURT",
+        "AGEUR",
+        "CEUR",
+        "EURC",
+        # GBP-pegged
+        "GBPT",
+        # Algorithmic / CDP stables
+        "MIM",
+        "DOLA",
+        "ALUSD",
+        "USDS",
+        # Rebasing / yield-bearing stables
+        "OUSD",
+    }
+)
 
 
 def is_stablecoin(symbol: str) -> bool:
@@ -160,7 +180,9 @@ def stablecoin_side(symbol0: str, symbol1: str) -> int:
 # These pairs typically use the 0.05% fee tier.
 
 CORRELATED_GROUPS: list[frozenset[str]] = [
-    frozenset({"WETH", "ETH", "STETH", "WSTETH", "RETH", "CBETH", "METH", "SWETH", "ANKRETH"}),
+    frozenset(
+        {"WETH", "ETH", "STETH", "WSTETH", "RETH", "CBETH", "METH", "SWETH", "ANKRETH"}
+    ),
     frozenset({"WBTC", "BTC", "TBTC", "CBBTC", "RENBTC", "SBTC"}),
 ]
 
@@ -209,10 +231,10 @@ def estimate_fee_tier(symbol0: str, symbol1: str) -> float:
         0.01
     """
     if is_stablecoin_pair(symbol0, symbol1):
-        return 0.0001   # 0.01% — stable-stable
+        return 0.0001  # 0.01% — stable-stable
 
     if is_correlated_pair(symbol0, symbol1):
-        return 0.0005   # 0.05% — correlated assets
+        return 0.0005  # 0.05% — correlated assets
 
     # ETH or BTC pairs with stablecoins → standard
     pair = classify_pair(symbol0, symbol1)
@@ -222,6 +244,6 @@ def estimate_fee_tier(symbol0: str, symbol1: str) -> float:
         major_volatile = {"WETH", "ETH", "WBTC", "BTC"}
         if upper & major_volatile:
             return 0.0005  # 0.05% — ETH/USDC, WBTC/USDT
-        return 0.003       # 0.30% — LINK/USDC, UNI/USDT
+        return 0.003  # 0.30% — LINK/USDC, UNI/USDT
 
     return 0.01  # 1.00% — exotic volatile-volatile

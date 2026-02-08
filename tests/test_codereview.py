@@ -38,15 +38,13 @@ Contract Address Sources:
 import ast
 import asyncio
 import importlib
-import math
-import os
 import re
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 # ── Setup project root ──────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -59,47 +57,99 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # Used by T03 (pool analysis), T16 (DEXScreener API connectivity).
 REFERENCE_POOLS = [
     # ── Uniswap V3 ─────────────────────────────────────────────────────
-    {"dex": "uniswap_v3", "network": "ethereum",
-     "address": "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
-     "pair": "USDC/WETH", "fee": "0.05%"},
-    {"dex": "uniswap_v3", "network": "arbitrum",
-     "address": "0x2f5e87C9312fa29aed5c179E456625D79015299c",
-     "pair": "WBTC/WETH", "fee": "0.05%"},
-    {"dex": "uniswap_v3", "network": "polygon",
-     "address": "0xD36ec33c8bed5a9F7B6630855f1533455b98a418",
-     "pair": "USDC.e/USDC", "fee": "0.01%"},
-    {"dex": "uniswap_v3", "network": "base",
-     "address": "0xd0b53D9277642d899DF5C87A3966A349A798F224",
-     "pair": "WETH/USDC", "fee": "0.05%"},
-    {"dex": "uniswap_v3", "network": "optimism",
-     "address": "0x1fb3cf6e48f1e7b10213e7b6d87d4c073c7fdb7b",
-     "pair": "USDC/WETH", "fee": "0.05%"},
+    {
+        "dex": "uniswap_v3",
+        "network": "ethereum",
+        "address": "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
+        "pair": "USDC/WETH",
+        "fee": "0.05%",
+    },
+    {
+        "dex": "uniswap_v3",
+        "network": "arbitrum",
+        "address": "0x2f5e87C9312fa29aed5c179E456625D79015299c",
+        "pair": "WBTC/WETH",
+        "fee": "0.05%",
+    },
+    {
+        "dex": "uniswap_v3",
+        "network": "polygon",
+        "address": "0xD36ec33c8bed5a9F7B6630855f1533455b98a418",
+        "pair": "USDC.e/USDC",
+        "fee": "0.01%",
+    },
+    {
+        "dex": "uniswap_v3",
+        "network": "base",
+        "address": "0xd0b53D9277642d899DF5C87A3966A349A798F224",
+        "pair": "WETH/USDC",
+        "fee": "0.05%",
+    },
+    {
+        "dex": "uniswap_v3",
+        "network": "optimism",
+        "address": "0x1fb3cf6e48f1e7b10213e7b6d87d4c073c7fdb7b",
+        "pair": "USDC/WETH",
+        "fee": "0.05%",
+    },
     # ── PancakeSwap V3 ─────────────────────────────────────────────────
-    {"dex": "pancakeswap_v3", "network": "ethereum",
-     "address": "0x6ca298d2983ab03aa1da7679389d955a4efee15c",
-     "pair": "WETH/USDT", "fee": "0.25%"},
-    {"dex": "pancakeswap_v3", "network": "bsc",
-     "address": "0x172fcd41e0913e95784454622d1c3724f546f849",
-     "pair": "WBNB/USDT", "fee": "0.25%"},
-    {"dex": "pancakeswap_v3", "network": "arbitrum",
-     "address": "0x7fcdc35463e3770c2fb992716cd070b63540b947",
-     "pair": "USDC/WETH", "fee": "0.25%"},
-    {"dex": "pancakeswap_v3", "network": "base",
-     "address": "0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38",
-     "pair": "WETH/USDC", "fee": "0.25%"},
+    {
+        "dex": "pancakeswap_v3",
+        "network": "ethereum",
+        "address": "0x6ca298d2983ab03aa1da7679389d955a4efee15c",
+        "pair": "WETH/USDT",
+        "fee": "0.25%",
+    },
+    {
+        "dex": "pancakeswap_v3",
+        "network": "bsc",
+        "address": "0x172fcd41e0913e95784454622d1c3724f546f849",
+        "pair": "WBNB/USDT",
+        "fee": "0.25%",
+    },
+    {
+        "dex": "pancakeswap_v3",
+        "network": "arbitrum",
+        "address": "0x7fcdc35463e3770c2fb992716cd070b63540b947",
+        "pair": "USDC/WETH",
+        "fee": "0.25%",
+    },
+    {
+        "dex": "pancakeswap_v3",
+        "network": "base",
+        "address": "0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38",
+        "pair": "WETH/USDC",
+        "fee": "0.25%",
+    },
     # ── SushiSwap V3 ───────────────────────────────────────────────────
-    {"dex": "sushiswap_v3", "network": "ethereum",
-     "address": "0xc3d03e4f041fd4cd388c549ee2a29a9e5075882f",
-     "pair": "WETH/DAI", "fee": "0.30%"},
-    {"dex": "sushiswap_v3", "network": "arbitrum",
-     "address": "0xf3eb87c1f6020982173c908e7eb31aa66c1f0296",
-     "pair": "USDC/WETH", "fee": "0.05%"},
-    {"dex": "sushiswap_v3", "network": "polygon",
-     "address": "0x34965ba0ac2451a34a0471f04cca3f990b8dea27",
-     "pair": "WETH/USDC", "fee": "0.30%"},
-    {"dex": "sushiswap_v3", "network": "optimism",
-     "address": "0x689a850f62b41d89b5e5c3465cd291374b215813",
-     "pair": "WBTC/WETH", "fee": "0.30%"},
+    {
+        "dex": "sushiswap_v3",
+        "network": "ethereum",
+        "address": "0xc3d03e4f041fd4cd388c549ee2a29a9e5075882f",
+        "pair": "WETH/DAI",
+        "fee": "0.30%",
+    },
+    {
+        "dex": "sushiswap_v3",
+        "network": "arbitrum",
+        "address": "0xf3eb87c1f6020982173c908e7eb31aa66c1f0296",
+        "pair": "USDC/WETH",
+        "fee": "0.05%",
+    },
+    {
+        "dex": "sushiswap_v3",
+        "network": "polygon",
+        "address": "0x34965ba0ac2451a34a0471f04cca3f990b8dea27",
+        "pair": "WETH/USDC",
+        "fee": "0.30%",
+    },
+    {
+        "dex": "sushiswap_v3",
+        "network": "optimism",
+        "address": "0x689a850f62b41d89b5e5c3465cd291374b215813",
+        "pair": "WBTC/WETH",
+        "fee": "0.30%",
+    },
 ]
 
 # RPC endpoints — imported from the single source of truth (rpc_helpers.py)
@@ -151,6 +201,7 @@ SENSITIVE_PATTERNS = [
 # TEST RESULTS COLLECTOR
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class CodeReviewResults:
     """Collects and formats test results for the codereview report."""
 
@@ -158,15 +209,23 @@ class CodeReviewResults:
         self.results: List[Dict] = []
         self.start_time = time.time()
 
-    def add(self, test_id: str, name: str, passed: bool,
-            detail: str = "", severity: str = "PASS"):
-        self.results.append({
-            "id": test_id,
-            "name": name,
-            "passed": passed,
-            "detail": detail,
-            "severity": severity if not passed else "PASS",
-        })
+    def add(
+        self,
+        test_id: str,
+        name: str,
+        passed: bool,
+        detail: str = "",
+        severity: str = "PASS",
+    ):
+        self.results.append(
+            {
+                "id": test_id,
+                "name": name,
+                "passed": passed,
+                "detail": detail,
+                "severity": severity if not passed else "PASS",
+            }
+        )
 
     def summary(self) -> str:
         elapsed = time.time() - self.start_time
@@ -177,8 +236,10 @@ class CodeReviewResults:
         lines = []
         lines.append("")
         lines.append("═" * 70)
-        lines.append(f"  CODEREVIEW — Automated Validation Report")
-        lines.append(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {elapsed:.1f}s")
+        lines.append("  CODEREVIEW — Automated Validation Report")
+        lines.append(
+            f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {elapsed:.1f}s"
+        )
         lines.append("═" * 70)
         lines.append("")
 
@@ -215,12 +276,15 @@ class CodeReviewResults:
 # T01 — CLI info command
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t01_cli_info(results: CodeReviewResults):
     """T01: python run.py info executes without error."""
     try:
         proc = subprocess.run(
             [sys.executable, str(PROJECT_ROOT / "run.py"), "info"],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True,
+            text=True,
+            timeout=15,
             cwd=str(PROJECT_ROOT),
         )
         ok = proc.returncode == 0 and "DeFi CLI" in proc.stdout
@@ -234,12 +298,15 @@ def _t01_cli_info(results: CodeReviewResults):
 # T02 — Integration check (live pools)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t02_cli_check(results: CodeReviewResults):
     """T02: python run.py check validates against live pools."""
     try:
         proc = subprocess.run(
             [sys.executable, str(PROJECT_ROOT / "run.py"), "check"],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True,
+            text=True,
+            timeout=120,
             cwd=str(PROJECT_ROOT),
         )
         output = proc.stdout
@@ -253,7 +320,9 @@ def _t02_cli_check(results: CodeReviewResults):
             detail = f"exit={proc.returncode}"
         results.add("T02", "Integration check (live pools)", ok, detail, "HIGH")
     except subprocess.TimeoutExpired:
-        results.add("T02", "Integration check (live pools)", False, "Timeout 120s", "MEDIUM")
+        results.add(
+            "T02", "Integration check (live pools)", False, "Timeout 120s", "MEDIUM"
+        )
     except Exception as e:
         results.add("T02", "Integration check (live pools)", False, str(e), "HIGH")
 
@@ -261,6 +330,7 @@ def _t02_cli_check(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T03 — Pool analysis with real DEXScreener data
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t03_pool_analysis(results: CodeReviewResults):
     """T03: Analyze known pools via DEXScreener API — one per DEX."""
@@ -277,6 +347,7 @@ def _t03_pool_analysis(results: CodeReviewResults):
             ok_pools = []
             fail_pools = []
             from defi_cli.dexscreener_client import analyze_pool_real
+
             for pool in pools_to_test:
                 try:
                     result = await analyze_pool_real(pool["address"])
@@ -307,14 +378,23 @@ def _t03_pool_analysis(results: CodeReviewResults):
             detail += "\n" + "\n".join(ok_pools)
         if fail_pools:
             detail += "\nFailed:\n" + "\n".join(fail_pools)
-        results.add("T03", f"Pool analysis ({len(ok_pools)} DEXes via DEXScreener)", ok, detail, "HIGH")
+        results.add(
+            "T03",
+            f"Pool analysis ({len(ok_pools)} DEXes via DEXScreener)",
+            ok,
+            detail,
+            "HIGH",
+        )
     except Exception as e:
-        results.add("T03", "Pool analysis (DEXScreener real data)", False, str(e)[:200], "HIGH")
+        results.add(
+            "T03", "Pool analysis (DEXScreener real data)", False, str(e)[:200], "HIGH"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T04 — Multi-DEX wallet scan (uses zero-balance test = valid execution)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t04_list_scan(results: CodeReviewResults):
     """T04: list command runs without crash on ALL 6 networks."""
@@ -329,10 +409,18 @@ def _t04_list_scan(results: CodeReviewResults):
         for network in all_networks:
             try:
                 proc = subprocess.run(
-                    [sys.executable, str(PROJECT_ROOT / "run.py"), "list", test_wallet,
-                     "--network", network],
+                    [
+                        sys.executable,
+                        str(PROJECT_ROOT / "run.py"),
+                        "list",
+                        test_wallet,
+                        "--network",
+                        network,
+                    ],
                     input="y\n",  # Accept disclaimer
-                    capture_output=True, text=True, timeout=180,
+                    capture_output=True,
+                    text=True,
+                    timeout=180,
                     cwd=str(PROJECT_ROOT),
                 )
                 if proc.returncode == 0:
@@ -353,7 +441,13 @@ def _t04_list_scan(results: CodeReviewResults):
             detail += f" ({len(timeout_nets)} timed out: {', '.join(timeout_nets)})"
         if fail_nets:
             detail += "\n" + "\n".join(fail_nets)
-        results.add("T04", f"Multi-DEX wallet scan ({len(ok_nets)} networks)", ok, detail, "HIGH")
+        results.add(
+            "T04",
+            f"Multi-DEX wallet scan ({len(ok_nets)} networks)",
+            ok,
+            detail,
+            "HIGH",
+        )
     except Exception as e:
         results.add("T04", "Multi-DEX wallet scan (list)", False, str(e), "HIGH")
 
@@ -362,12 +456,15 @@ def _t04_list_scan(results: CodeReviewResults):
 # T05 — Unit tests (pytest)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t05_unit_tests(results: CodeReviewResults):
     """T05: All 65 formula unit tests pass."""
     try:
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", "tests/test_math.py", "-v", "--tb=short"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(PROJECT_ROOT),
         )
         match = re.search(r"(\d+) passed", proc.stdout)
@@ -384,6 +481,7 @@ def _t05_unit_tests(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T06 — Syntax validation (ast.parse)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t06_syntax(results: CodeReviewResults):
     """T06: All Python files parse without syntax errors."""
@@ -406,6 +504,7 @@ def _t06_syntax(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T07 — Import validation
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t07_imports(results: CodeReviewResults):
     """T07: All project modules import without error."""
@@ -439,6 +538,7 @@ def _t07_imports(results: CodeReviewResults):
 # T08 — Version consistency
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t08_version(results: CodeReviewResults):
     """T08: Version in pyproject.toml matches central_config.py."""
     try:
@@ -461,6 +561,7 @@ def _t08_version(results: CodeReviewResults):
 # T09 — Sensitive data scan
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t09_secrets(results: CodeReviewResults):
     """T09: No hardcoded secrets/keys in source code."""
     findings = []
@@ -482,6 +583,7 @@ def _t09_secrets(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T10 — Contract addresses on-chain verification
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t10_contracts_onchain(results: CodeReviewResults):
     """T10: All DEX Registry contract addresses are real contracts on-chain."""
@@ -509,11 +611,15 @@ def _t10_contracts_onchain(results: CodeReviewResults):
                         for attempt in range(3):
                             try:
                                 async with httpx.AsyncClient(timeout=10) as client:
-                                    resp = await client.post(rpc, json={
-                                        "jsonrpc": "2.0", "id": 1,
-                                        "method": "eth_getCode",
-                                        "params": [pm, "latest"],
-                                    })
+                                    resp = await client.post(
+                                        rpc,
+                                        json={
+                                            "jsonrpc": "2.0",
+                                            "id": 1,
+                                            "method": "eth_getCode",
+                                            "params": [pm, "latest"],
+                                        },
+                                    )
                                     code = resp.json().get("result", "0x")
                                     if len(code) > 4:
                                         is_contract = True
@@ -525,7 +631,9 @@ def _t10_contracts_onchain(results: CodeReviewResults):
                         if is_contract:
                             verified += 1
                         else:
-                            failed.append(f"{slug}/{network}: {pm[:16]}... NOT A CONTRACT")
+                            failed.append(
+                                f"{slug}/{network}: {pm[:16]}... NOT A CONTRACT"
+                            )
                     except Exception as e:
                         failed.append(f"{slug}/{network}: RPC error — {e}")
                     await asyncio.sleep(0.2)  # Rate limit
@@ -537,37 +645,70 @@ def _t10_contracts_onchain(results: CodeReviewResults):
         detail = f"{verified}/{total} contracts verified"
         if failed:
             detail += "\n" + "\n".join(failed[:5])
-        results.add("T10", f"Contract addresses on-chain ({verified}/{total})", ok, detail, "CRITICAL")
+        results.add(
+            "T10",
+            f"Contract addresses on-chain ({verified}/{total})",
+            ok,
+            detail,
+            "CRITICAL",
+        )
     except Exception as e:
-        results.add("T10", "Contract addresses on-chain", False, str(e)[:200], "CRITICAL")
+        results.add(
+            "T10", "Contract addresses on-chain", False, str(e)[:200], "CRITICAL"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T11 — Tick↔Price roundtrip (formula validation)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t11_tick_price_roundtrip(results: CodeReviewResults):
     """T11: tick_to_price ↔ price_to_tick roundtrip at multiple scales."""
     from real_defi_math import UniswapV3Math
 
-    test_prices = [0.0001, 0.001, 0.01, 0.1, 1.0, 10, 100, 500, 1000,
-                   1800, 2000, 3500, 10000, 50000, 100000]
+    test_prices = [
+        0.0001,
+        0.001,
+        0.01,
+        0.1,
+        1.0,
+        10,
+        100,
+        500,
+        1000,
+        1800,
+        2000,
+        3500,
+        10000,
+        50000,
+        100000,
+    ]
     errors = []
     for price in test_prices:
         tick = UniswapV3Math.price_to_tick(price)
         recovered = UniswapV3Math.tick_to_price(tick)
         error_pct = abs(recovered - price) / price * 100
         if error_pct >= 0.01:
-            errors.append(f"price={price}: tick={tick}, recovered={recovered:.6f}, error={error_pct:.4f}%")
+            errors.append(
+                f"price={price}: tick={tick}, recovered={recovered:.6f}, error={error_pct:.4f}%"
+            )
 
     ok = len(errors) == 0
     detail = f"{len(test_prices)} prices tested" if ok else "\n".join(errors)
-    results.add("T11", f"Tick↔Price roundtrip ({len(test_prices)} scales)", ok, detail, "CRITICAL")
+    results.add(
+        "T11",
+        f"Tick↔Price roundtrip ({len(test_prices)} scales)",
+        ok,
+        detail,
+        "CRITICAL",
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T12 — IL symmetry (Pintail formula)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t12_il_symmetry(results: CodeReviewResults):
     """T12: IL(r) == IL(1/r) — impermanent loss is symmetric."""
@@ -590,13 +731,20 @@ def _t12_il_symmetry(results: CodeReviewResults):
 # T13 — Capital efficiency ≥ 1.0
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t13_capital_efficiency(results: CodeReviewResults):
     """T13: CE ≥ 1.0 for any valid range (Whitepaper §2)."""
     from real_defi_math import UniswapV3Math
 
     test_ranges = [
-        (100, 10000), (500, 5000), (1000, 3000), (1500, 2500),
-        (1800, 2200), (1900, 2100), (1950, 2050), (1990, 2010),
+        (100, 10000),
+        (500, 5000),
+        (1000, 3000),
+        (1500, 2500),
+        (1800, 2200),
+        (1900, 2100),
+        (1950, 2050),
+        (1990, 2010),
     ]
     errors = []
     for pa, pb in test_ranges:
@@ -605,13 +753,16 @@ def _t13_capital_efficiency(results: CodeReviewResults):
             errors.append(f"range [{pa}-{pb}]: CE={ce:.4f} < 1.0")
 
     ok = len(errors) == 0
-    detail = f"{len(test_ranges)} ranges tested, all CE ≥ 1.0" if ok else "\n".join(errors)
+    detail = (
+        f"{len(test_ranges)} ranges tested, all CE ≥ 1.0" if ok else "\n".join(errors)
+    )
     results.add("T13", "Capital efficiency ≥ 1.0", ok, detail, "CRITICAL")
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T14 — Fee APY: higher share → higher APY
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t14_fee_apy_monotonic(results: CodeReviewResults):
     """T14: Larger liquidity share → higher APY (fee distribution)."""
@@ -621,8 +772,10 @@ def _t14_fee_apy_monotonic(results: CodeReviewResults):
     apys = []
     for s in shares:
         r = UniswapV3Math.estimate_fee_apy(
-            volume_24h=1_000_000, fee_tier=0.003,
-            position_liquidity=s, total_pool_liquidity=10000,
+            volume_24h=1_000_000,
+            fee_tier=0.003,
+            position_liquidity=s,
+            total_pool_liquidity=10000,
             position_value_usd=10000,
         )
         apys.append(r["apy_pct"])
@@ -637,36 +790,66 @@ def _t14_fee_apy_monotonic(results: CodeReviewResults):
 # T15 — Data pipeline schema (position_reader → math → html)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t15_pipeline_schema(results: CodeReviewResults):
     """T15: Data flows correctly from PositionData → analyze_position → HTML fields."""
     from real_defi_math import PositionData, analyze_position
 
     pos = PositionData(
-        token0_amount=1.0, token1_amount=2000.0,
-        token0_symbol="WETH", token1_symbol="USDC",
-        current_price=2000.0, range_min=1800.0, range_max=2200.0,
-        fee_tier=0.0005, total_value_usd=4000.0, fees_earned_usd=10.0,
-        volume_24h=100_000_000.0, total_value_locked_usd=50_000_000.0,
-        pool_address="0x" + "a" * 40, network="ethereum", protocol="uniswap_v3",
+        token0_amount=1.0,
+        token1_amount=2000.0,
+        token0_symbol="WETH",
+        token1_symbol="USDC",
+        current_price=2000.0,
+        range_min=1800.0,
+        range_max=2200.0,
+        fee_tier=0.0005,
+        total_value_usd=4000.0,
+        fees_earned_usd=10.0,
+        volume_24h=100_000_000.0,
+        total_value_locked_usd=50_000_000.0,
+        pool_address="0x" + "a" * 40,
+        network="ethereum",
+        protocol="uniswap_v3",
     )
     analysis = analyze_position(pos)
 
     # Fields required by html_generator
     required_fields = [
-        "current_price", "range_min", "range_max", "total_value_usd",
-        "fee_tier", "fee_tier_label", "in_range", "liquidity",
-        "capital_efficiency_vs_v2", "strategies", "generated_at",
-        "token0_symbol", "token1_symbol", "network", "protocol",
-        "downside_buffer_pct", "upside_buffer_pct",
-        "daily_fees_est", "weekly_fees_est", "monthly_fees_est", "annual_fees_est",
-        "pool_apr_estimate", "volume_24h", "total_value_locked_usd",
-        "data_source", "position_apr_est",
+        "current_price",
+        "range_min",
+        "range_max",
+        "total_value_usd",
+        "fee_tier",
+        "fee_tier_label",
+        "in_range",
+        "liquidity",
+        "capital_efficiency_vs_v2",
+        "strategies",
+        "generated_at",
+        "token0_symbol",
+        "token1_symbol",
+        "network",
+        "protocol",
+        "downside_buffer_pct",
+        "upside_buffer_pct",
+        "daily_fees_est",
+        "weekly_fees_est",
+        "monthly_fees_est",
+        "annual_fees_est",
+        "pool_apr_estimate",
+        "volume_24h",
+        "total_value_locked_usd",
+        "data_source",
+        "position_apr_est",
     ]
     missing = [f for f in required_fields if f not in analysis]
 
     # Validate strategies have all 3
     strats = analysis.get("strategies", {})
-    missing_strats = [s for s in ["conservative", "moderate", "aggressive"] if s not in strats]
+    missing_strats = [
+        s for s in ["conservative", "moderate", "aggressive"] if s not in strats
+    ]
 
     ok = len(missing) == 0 and len(missing_strats) == 0
     detail = ""
@@ -682,6 +865,7 @@ def _t15_pipeline_schema(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T16 — DEXScreener API connectivity (all priority chains)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t16_dexscreener_chains(results: CodeReviewResults):
     """T16: DEXScreener API responds for ALL reference pools (3 DEXes × all networks)."""
@@ -715,14 +899,23 @@ def _t16_dexscreener_chains(results: CodeReviewResults):
         detail = f"{len(ok_pools)}/{len(REFERENCE_POOLS)} pools OK ({dexes_ok} DEXes, {nets_ok} networks)"
         if fail_pools:
             detail += "\n" + "\n".join(fail_pools)
-        results.add("T16", f"DEXScreener API ({dexes_ok} DEXes, {nets_ok} nets)", ok, detail, "MEDIUM")
+        results.add(
+            "T16",
+            f"DEXScreener API ({dexes_ok} DEXes, {nets_ok} nets)",
+            ok,
+            detail,
+            "MEDIUM",
+        )
     except Exception as e:
-        results.add("T16", "DEXScreener API connectivity", False, str(e)[:200], "MEDIUM")
+        results.add(
+            "T16", "DEXScreener API connectivity", False, str(e)[:200], "MEDIUM"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T17 — RPC endpoints (eth_blockNumber for all networks)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t17_rpc_endpoints(results: CodeReviewResults):
     """T17: All RPC endpoints respond to eth_blockNumber."""
@@ -735,10 +928,15 @@ def _t17_rpc_endpoints(results: CodeReviewResults):
             for network, rpc in RPC_URLS.items():
                 try:
                     async with httpx.AsyncClient(timeout=10) as client:
-                        resp = await client.post(rpc, json={
-                            "jsonrpc": "2.0", "id": 1,
-                            "method": "eth_blockNumber", "params": [],
-                        })
+                        resp = await client.post(
+                            rpc,
+                            json={
+                                "jsonrpc": "2.0",
+                                "id": 1,
+                                "method": "eth_blockNumber",
+                                "params": [],
+                            },
+                        )
                         block = int(resp.json().get("result", "0x0"), 16)
                         if block > 0:
                             ok_nets.append(f"{network} (block #{block:,})")
@@ -754,7 +952,13 @@ def _t17_rpc_endpoints(results: CodeReviewResults):
         detail = f"{len(ok_nets)}/{len(RPC_URLS)} endpoints OK"
         if fail_nets:
             detail += "\n" + "\n".join(fail_nets[:3])
-        results.add("T17", f"RPC endpoints ({len(ok_nets)}/{len(RPC_URLS)})", ok, detail, "MEDIUM")
+        results.add(
+            "T17",
+            f"RPC endpoints ({len(ok_nets)}/{len(RPC_URLS)})",
+            ok,
+            detail,
+            "MEDIUM",
+        )
     except Exception as e:
         results.add("T17", "RPC endpoints", False, str(e)[:200], "MEDIUM")
 
@@ -762,6 +966,7 @@ def _t17_rpc_endpoints(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T18 — README links are accessible
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t18_readme_links(results: CodeReviewResults):
     """T18: External links in README.md return HTTP 200."""
@@ -780,7 +985,9 @@ def _t18_readme_links(results: CodeReviewResults):
             fail_links = []
             for url in unique_urls:
                 try:
-                    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                    async with httpx.AsyncClient(
+                        timeout=10, follow_redirects=True
+                    ) as client:
                         resp = await client.head(url)
                         if resp.status_code < 400:
                             ok_links.append(url)
@@ -797,7 +1004,13 @@ def _t18_readme_links(results: CodeReviewResults):
         detail = f"{len(ok_links)}/{len(unique_urls)} links OK"
         if fail_links:
             detail += "\n" + "\n".join(fail_links[:3])
-        results.add("T18", f"README links ({len(ok_links)}/{len(unique_urls)})", ok, detail, "LOW")
+        results.add(
+            "T18",
+            f"README links ({len(ok_links)}/{len(unique_urls)})",
+            ok,
+            detail,
+            "LOW",
+        )
     except Exception as e:
         results.add("T18", "README links", False, str(e)[:200], "LOW")
 
@@ -806,14 +1019,22 @@ def _t18_readme_links(results: CodeReviewResults):
 # T19 — Disclaimers in user-facing output
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t19_disclaimers(results: CodeReviewResults):
     """T19: Disclaimers present in CLI output and legal module."""
     findings = []
 
     # Check legal module exists and has required content
     try:
-        from defi_cli.legal_disclaimers import CLI_DISCLAIMER, get_jurisdiction_specific_warning
-        if "NOT FINANCIAL ADVICE" not in CLI_DISCLAIMER.upper() and "NOT financial" not in CLI_DISCLAIMER:
+        from defi_cli.legal_disclaimers import (
+            CLI_DISCLAIMER,
+            get_jurisdiction_specific_warning,
+        )
+
+        if (
+            "NOT FINANCIAL ADVICE" not in CLI_DISCLAIMER.upper()
+            and "NOT financial" not in CLI_DISCLAIMER
+        ):
             findings.append("CLI_DISCLAIMER missing 'NOT financial advice'")
         for jur in ["BR", "US", "EU", "GLOBAL"]:
             w = get_jurisdiction_specific_warning(jur)
@@ -838,6 +1059,7 @@ def _t19_disclaimers(results: CodeReviewResults):
 # T20 — HTML report structure (5 sessions)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t20_html_structure(results: CodeReviewResults):
     """T20: HTML generator produces reports with all required sections."""
     try:
@@ -846,12 +1068,21 @@ def _t20_html_structure(results: CodeReviewResults):
         from datetime import datetime
 
         pos = PositionData(
-            token0_amount=1.0, token1_amount=2000.0,
-            token0_symbol="WETH", token1_symbol="USDC",
-            current_price=2000.0, range_min=1800.0, range_max=2200.0,
-            fee_tier=0.0005, total_value_usd=4000.0, fees_earned_usd=10.0,
-            volume_24h=100_000_000.0, total_value_locked_usd=50_000_000.0,
-            pool_address="0x" + "a" * 40, network="ethereum", protocol="uniswap_v3",
+            token0_amount=1.0,
+            token1_amount=2000.0,
+            token0_symbol="WETH",
+            token1_symbol="USDC",
+            current_price=2000.0,
+            range_min=1800.0,
+            range_max=2200.0,
+            fee_tier=0.0005,
+            total_value_usd=4000.0,
+            fees_earned_usd=10.0,
+            volume_24h=100_000_000.0,
+            total_value_locked_usd=50_000_000.0,
+            pool_address="0x" + "a" * 40,
+            network="ethereum",
+            protocol="uniswap_v3",
         )
         analysis = analyze_position(pos)
         analysis["consent_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -861,13 +1092,15 @@ def _t20_html_structure(results: CodeReviewResults):
 
         # Check for required sections
         required_sections = [
-            "session",        # CSS class for sections
-            "Position",       # Session 1
-            "Pool",           # Session 2
-            "Strateg",        # Session 3
-            "Disclaimer",     # Session 5 (legal)
+            "session",  # CSS class for sections
+            "Position",  # Session 1
+            "Pool",  # Session 2
+            "Strateg",  # Session 3
+            "Disclaimer",  # Session 5 (legal)
         ]
-        missing = [s for s in required_sections if s.lower() not in html_content.lower()]
+        missing = [
+            s for s in required_sections if s.lower() not in html_content.lower()
+        ]
 
         # Cleanup test report
         try:
@@ -876,7 +1109,11 @@ def _t20_html_structure(results: CodeReviewResults):
             pass
 
         ok = len(missing) == 0
-        detail = f"All {len(required_sections)} sections present" if ok else f"Missing: {missing}"
+        detail = (
+            f"All {len(required_sections)} sections present"
+            if ok
+            else f"Missing: {missing}"
+        )
         results.add("T20", "HTML report structure", ok, detail, "HIGH")
     except Exception as e:
         results.add("T20", "HTML report structure", False, str(e)[:200], "HIGH")
@@ -885,6 +1122,7 @@ def _t20_html_structure(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T21 — Requirements validation (pip dependencies)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t21_requirements(results: CodeReviewResults):
     """T21: All declared dependencies are importable and versions satisfy constraints."""
@@ -909,7 +1147,7 @@ def _t21_requirements(results: CodeReviewResults):
     toml_path = PROJECT_ROOT / "pyproject.toml"
     if toml_path.exists():
         toml_text = toml_path.read_text()
-        deps = re.findall(r'"(\w[\w-]*)(?:[>=<~!].*)?"', toml_text)
+        _deps = re.findall(r'"(\w[\w-]*)(?:[>=<~!].*)?"', toml_text)
         # Verify Python version constraint
         py_match = re.search(r'requires-python\s*=\s*"([^"]+)"', toml_text)
         if py_match:
@@ -928,6 +1166,7 @@ def _t21_requirements(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T22 — Modularity check (no circular imports, proper separation)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t22_modularity(results: CodeReviewResults):
     """T22: Modules follow clean architecture — no circular imports, proper isolation."""
@@ -960,15 +1199,26 @@ def _t22_modularity(results: CodeReviewResults):
 
     # 2. Verify defi_cli/ doesn't import from root-level modules at module scope
     # (root imports defi_cli, not the other way)
-    for f in ["central_config.py", "dex_registry.py", "stablecoins.py",
-              "rpc_helpers.py", "html_styles.py"]:
+    for f in [
+        "central_config.py",
+        "dex_registry.py",
+        "stablecoins.py",
+        "rpc_helpers.py",
+        "html_styles.py",
+    ]:
         fpath = PROJECT_ROOT / "defi_cli" / f
         if fpath.exists():
             content = fpath.read_text()
-            for bad_import in ["import position_reader", "import html_generator",
-                               "import real_defi_math", "import run"]:
+            for bad_import in [
+                "import position_reader",
+                "import html_generator",
+                "import real_defi_math",
+                "import run",
+            ]:
                 if bad_import in content:
-                    findings.append(f"defi_cli/{f}: improper import '{bad_import}' (breaks modularity)")
+                    findings.append(
+                        f"defi_cli/{f}: improper import '{bad_import}' (breaks modularity)"
+                    )
 
     # 3. Verify __init__.py exposes version
     init_path = PROJECT_ROOT / "defi_cli" / "__init__.py"
@@ -980,13 +1230,18 @@ def _t22_modularity(results: CodeReviewResults):
         findings.append("defi_cli/__init__.py: not found")
 
     ok = len(findings) == 0
-    detail = "\n".join(findings) if findings else f"{len(modules)} modules OK, proper isolation"
+    detail = (
+        "\n".join(findings)
+        if findings
+        else f"{len(modules)} modules OK, proper isolation"
+    )
     results.add("T22", "Modularity check", ok, detail, "MEDIUM")
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T23 — Dependency vulnerability scan
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t23_vulnerability(results: CodeReviewResults):
     """T23: Check dependencies for known patterns and supply-chain risks."""
@@ -995,10 +1250,15 @@ def _t23_vulnerability(results: CodeReviewResults):
     # 1. Verify minimal dependency surface (only httpx required)
     req_path = PROJECT_ROOT / "requirements.txt"
     if req_path.exists():
-        deps = [l.strip() for l in req_path.read_text().splitlines()
-                if l.strip() and not l.strip().startswith("#")]
+        deps = [
+            line.strip()
+            for line in req_path.read_text().splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
         if len(deps) > 3:
-            findings.append(f"Too many dependencies ({len(deps)}) — attack surface concern")
+            findings.append(
+                f"Too many dependencies ({len(deps)}) — attack surface concern"
+            )
         for dep in deps:
             pkg = re.split(r"[>=<~!]", dep)[0].strip().lower()
             if pkg not in ("httpx",):
@@ -1011,8 +1271,14 @@ def _t23_vulnerability(results: CodeReviewResults):
             continue
         content = fpath.read_text()
         for i, line in enumerate(content.split("\n"), 1):
-            if "http://" in line and "localhost" not in line and "127.0.0.1" not in line:
-                if not line.strip().startswith("#") and not line.strip().startswith('"""'):
+            if (
+                "http://" in line
+                and "localhost" not in line
+                and "127.0.0.1" not in line
+            ):
+                if not line.strip().startswith("#") and not line.strip().startswith(
+                    '"""'
+                ):
                     findings.append(f"{f}:{i}: non-HTTPS URL found")
 
     # 3. No eval/exec usage
@@ -1025,7 +1291,9 @@ def _t23_vulnerability(results: CodeReviewResults):
             stripped = line.strip()
             if stripped.startswith("#"):
                 continue
-            if re.search(r"\beval\s*\(", stripped) or re.search(r"\bexec\s*\(", stripped):
+            if re.search(r"\beval\s*\(", stripped) or re.search(
+                r"\bexec\s*\(", stripped
+            ):
                 findings.append(f"{f}:{i}: eval/exec usage (security risk)")
 
     # 4. No pickle/marshal usage
@@ -1038,7 +1306,11 @@ def _t23_vulnerability(results: CodeReviewResults):
             findings.append(f"{f}: pickle/marshal import (deserialization risk)")
 
     ok = len(findings) == 0
-    detail = "\n".join(findings[:5]) if findings else "No vulnerabilities found — minimal attack surface"
+    detail = (
+        "\n".join(findings[:5])
+        if findings
+        else "No vulnerabilities found — minimal attack surface"
+    )
     results.add("T23", "Vulnerability scan", ok, detail, "CRITICAL")
 
 
@@ -1046,24 +1318,40 @@ def _t23_vulnerability(results: CodeReviewResults):
 # T24 — File integrity (all expected files present)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t24_file_integrity(results: CodeReviewResults):
     """T24: All expected project files exist and are non-empty."""
     required_files = [
         # Source
-        "run.py", "position_reader.py", "position_indexer.py",
-        "real_defi_math.py", "html_generator.py", "pool_scout.py",
+        "run.py",
+        "position_reader.py",
+        "position_indexer.py",
+        "real_defi_math.py",
+        "html_generator.py",
+        "pool_scout.py",
         # Package
-        "defi_cli/__init__.py", "defi_cli/central_config.py",
-        "defi_cli/dex_registry.py", "defi_cli/dexscreener_client.py",
-        "defi_cli/legal_disclaimers.py", "defi_cli/rpc_helpers.py",
-        "defi_cli/stablecoins.py", "defi_cli/commands.py",
+        "defi_cli/__init__.py",
+        "defi_cli/central_config.py",
+        "defi_cli/dex_registry.py",
+        "defi_cli/dexscreener_client.py",
+        "defi_cli/legal_disclaimers.py",
+        "defi_cli/rpc_helpers.py",
+        "defi_cli/stablecoins.py",
+        "defi_cli/commands.py",
         "defi_cli/html_styles.py",
         # Tests
-        "tests/test_math.py", "tests/test_units.py", "tests/test_codereview.py",
+        "tests/test_math.py",
+        "tests/test_units.py",
+        "tests/test_codereview.py",
         # Config
-        "pyproject.toml", "requirements.txt",
+        "pyproject.toml",
+        "requirements.txt",
         # Docs
-        "README.md", "CHANGELOG.md", "SECURITY.md", "COMPLIANCE.md", "LICENSE",
+        "README.md",
+        "CHANGELOG.md",
+        "SECURITY.md",
+        "COMPLIANCE.md",
+        "LICENSE",
         ".codereview.md",
     ]
     missing = []
@@ -1088,13 +1376,16 @@ def _t24_file_integrity(results: CodeReviewResults):
         findings.append(f"Stale files not removed: {still_present}")
 
     ok = len(findings) == 0
-    detail = "\n".join(findings) if findings else f"All {len(required_files)} files present"
+    detail = (
+        "\n".join(findings) if findings else f"All {len(required_files)} files present"
+    )
     results.add("T24", "File integrity", ok, detail, "HIGH")
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T25 — LGPD compliance (data protection BR)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t25_lgpd_compliance(results: CodeReviewResults):
     """T25: LGPD: no PII collection, no cookies, privacy by design."""
@@ -1109,10 +1400,18 @@ def _t25_lgpd_compliance(results: CodeReviewResults):
         if "set_cookie" in content:
             findings.append(f"{f}: sets cookies — requires LGPD consent")
         # No tracking pixels
-        for tracker in ["google-analytics", "gtag(", "fbq(", "hotjar",
-                        "mixpanel", "amplitude"]:
+        for tracker in [
+            "google-analytics",
+            "gtag(",
+            "fbq(",
+            "hotjar",
+            "mixpanel",
+            "amplitude",
+        ]:
             if tracker in content.lower():
-                findings.append(f"{f}: third-party tracker ({tracker}) — LGPD consent req")
+                findings.append(
+                    f"{f}: third-party tracker ({tracker}) — LGPD consent req"
+                )
 
     # Check disclaimers mention privacy
     disc_path = PROJECT_ROOT / "defi_cli" / "legal_disclaimers.py"
@@ -1129,6 +1428,7 @@ def _t25_lgpd_compliance(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T26 — CVM/SEC disclaimer depth
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t26_cvm_disclaimer(results: CodeReviewResults):
     """T26: CVM/SEC: NOT FINANCIAL ADVICE, no guarantees, user responsibility."""
@@ -1157,11 +1457,19 @@ def _t26_cvm_disclaimer(results: CodeReviewResults):
 # T27 — No third-party tracking
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t27_no_tracking(results: CodeReviewResults):
     """T27: No LGPD/GDPR-violating trackers (GA, FB, Hotjar, etc.)."""
     findings = []
-    trackers = ["google-analytics", "gtag(", "fbq(", "hotjar",
-                "mixpanel", "amplitude", "facebook.com/tr"]
+    trackers = [
+        "google-analytics",
+        "gtag(",
+        "fbq(",
+        "hotjar",
+        "mixpanel",
+        "amplitude",
+        "facebook.com/tr",
+    ]
 
     for f in PYTHON_FILES:
         fpath = PROJECT_ROOT / f
@@ -1181,12 +1489,18 @@ def _t27_no_tracking(results: CodeReviewResults):
 # T28 — Azure IaC validation (conditional)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t28_azure_iac(results: CodeReviewResults):
     """T28: If terraform/ exists, validate IaC files and secrets config."""
     tf_dir = PROJECT_ROOT / "terraform"
     if not tf_dir.exists():
-        results.add("T28", "Azure IaC (conditional)", True,
-                     "No terraform/ — not applicable", "PASS")
+        results.add(
+            "T28",
+            "Azure IaC (conditional)",
+            True,
+            "No terraform/ — not applicable",
+            "PASS",
+        )
         return
 
     findings = []
@@ -1216,12 +1530,18 @@ def _t28_azure_iac(results: CodeReviewResults):
 # T29 — Docker security (conditional)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t29_docker_security(results: CodeReviewResults):
     """T29: If Dockerfile exists, validate non-root, slim, HEALTHCHECK."""
     dockerfile = PROJECT_ROOT / "Dockerfile"
     if not dockerfile.exists():
-        results.add("T29", "Docker security (conditional)", True,
-                     "No Dockerfile — not applicable", "PASS")
+        results.add(
+            "T29",
+            "Docker security (conditional)",
+            True,
+            "No Dockerfile — not applicable",
+            "PASS",
+        )
         return
 
     findings = []
@@ -1246,12 +1566,18 @@ def _t29_docker_security(results: CodeReviewResults):
 # T30 — CI/CD security (conditional)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t30_cicd_security(results: CodeReviewResults):
     """T30: If .github/workflows exists, validate pinned actions, perms, concurrency."""
     wf_dir = PROJECT_ROOT / ".github" / "workflows"
     if not wf_dir.exists():
-        results.add("T30", "CI/CD security (conditional)", True,
-                     "No .github/workflows/ — not applicable", "PASS")
+        results.add(
+            "T30",
+            "CI/CD security (conditional)",
+            True,
+            "No .github/workflows/ — not applicable",
+            "PASS",
+        )
         return
 
     findings = []
@@ -1283,6 +1609,7 @@ def _t30_cicd_security(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # RUNNER
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def run_all(quick: bool = False):
     """Execute all codereview tests and print summary."""
@@ -1391,18 +1718,25 @@ def run_all(quick: bool = False):
         _t18_readme_links(results)
     else:
         for tid, name in [
-            ("T02", "Integration check"), ("T03", "Pool analysis"),
-            ("T04", "Multi-DEX scan"), ("T10", "Contracts on-chain"),
-            ("T16", "DEXScreener chains"), ("T17", "RPC endpoints"),
+            ("T02", "Integration check"),
+            ("T03", "Pool analysis"),
+            ("T04", "Multi-DEX scan"),
+            ("T10", "Contracts on-chain"),
+            ("T16", "DEXScreener chains"),
+            ("T17", "RPC endpoints"),
             ("T18", "README links"),
         ]:
-            results.add(tid, f"{name} (SKIPPED —quick)", True, "Skipped in quick mode", "PASS")
+            results.add(
+                tid, f"{name} (SKIPPED —quick)", True, "Skipped in quick mode", "PASS"
+            )
 
     # ── Print summary ────────────────────────────────────────────────
     print(results.summary())
 
     # Return exit code
-    critical_fails = sum(1 for r in results.results if not r["passed"] and r["severity"] == "CRITICAL")
+    critical_fails = sum(
+        1 for r in results.results if not r["passed"] and r["severity"] == "CRITICAL"
+    )
     return 1 if critical_fails > 0 else 0
 
 
@@ -1411,30 +1745,110 @@ def run_all(quick: bool = False):
 
 import pytest
 
+
 @pytest.fixture(scope="module")
 def cr():
     return CodeReviewResults()
 
-def test_cr_t06_syntax(cr): _t06_syntax(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T06")
-def test_cr_t07_imports(cr): _t07_imports(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T07")
-def test_cr_t08_version(cr): _t08_version(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T08")
-def test_cr_t09_secrets(cr): _t09_secrets(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T09")
-def test_cr_t11_tick_roundtrip(cr): _t11_tick_price_roundtrip(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T11")
-def test_cr_t12_il_symmetry(cr): _t12_il_symmetry(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T12")
-def test_cr_t13_capital_eff(cr): _t13_capital_efficiency(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T13")
-def test_cr_t14_fee_monotonic(cr): _t14_fee_apy_monotonic(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T14")
-def test_cr_t15_pipeline(cr): _t15_pipeline_schema(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T15")
-def test_cr_t19_disclaimers(cr): _t19_disclaimers(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T19")
-def test_cr_t21_requirements(cr): _t21_requirements(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T21")
-def test_cr_t22_modularity(cr): _t22_modularity(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T22")
-def test_cr_t23_vulnerability(cr): _t23_vulnerability(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T23")
-def test_cr_t24_file_integrity(cr): _t24_file_integrity(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T24")
-def test_cr_t25_lgpd(cr): _t25_lgpd_compliance(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T25")
-def test_cr_t26_cvm(cr): _t26_cvm_disclaimer(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T26")
-def test_cr_t27_tracking(cr): _t27_no_tracking(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T27")
-def test_cr_t28_azure_iac(cr): _t28_azure_iac(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T28")
-def test_cr_t29_docker(cr): _t29_docker_security(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T29")
-def test_cr_t30_cicd(cr): _t30_cicd_security(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T30")
+
+def test_cr_t06_syntax(cr):
+    _t06_syntax(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T06")
+
+
+def test_cr_t07_imports(cr):
+    _t07_imports(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T07")
+
+
+def test_cr_t08_version(cr):
+    _t08_version(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T08")
+
+
+def test_cr_t09_secrets(cr):
+    _t09_secrets(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T09")
+
+
+def test_cr_t11_tick_roundtrip(cr):
+    _t11_tick_price_roundtrip(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T11")
+
+
+def test_cr_t12_il_symmetry(cr):
+    _t12_il_symmetry(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T12")
+
+
+def test_cr_t13_capital_eff(cr):
+    _t13_capital_efficiency(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T13")
+
+
+def test_cr_t14_fee_monotonic(cr):
+    _t14_fee_apy_monotonic(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T14")
+
+
+def test_cr_t15_pipeline(cr):
+    _t15_pipeline_schema(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T15")
+
+
+def test_cr_t19_disclaimers(cr):
+    _t19_disclaimers(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T19")
+
+
+def test_cr_t21_requirements(cr):
+    _t21_requirements(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T21")
+
+
+def test_cr_t22_modularity(cr):
+    _t22_modularity(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T22")
+
+
+def test_cr_t23_vulnerability(cr):
+    _t23_vulnerability(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T23")
+
+
+def test_cr_t24_file_integrity(cr):
+    _t24_file_integrity(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T24")
+
+
+def test_cr_t25_lgpd(cr):
+    _t25_lgpd_compliance(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T25")
+
+
+def test_cr_t26_cvm(cr):
+    _t26_cvm_disclaimer(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T26")
+
+
+def test_cr_t27_tracking(cr):
+    _t27_no_tracking(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T27")
+
+
+def test_cr_t28_azure_iac(cr):
+    _t28_azure_iac(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T28")
+
+
+def test_cr_t29_docker(cr):
+    _t29_docker_security(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T29")
+
+
+def test_cr_t30_cicd(cr):
+    _t30_cicd_security(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T30")
 
 
 # ── CLI entry point ─────────────────────────────────────────────────────

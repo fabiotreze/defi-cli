@@ -44,12 +44,12 @@ from datetime import datetime
 DEFAULT_CAPITAL_USD = 10_000  # Default simulated investment for educational analysis
 
 from defi_cli.stablecoins import (
-    is_stablecoin, is_stablecoin_pair, classify_pair,
     estimate_fee_tier as _estimate_fee_tier,
 )
 
 
 # ── Position Data ────────────────────────────────────────────────────────
+
 
 @dataclass
 class PositionData:
@@ -68,6 +68,7 @@ class PositionData:
       - network / protocol          → Chain + DEX
       - token0_symbol/token1_symbol → Ticker names
     """
+
     # Token balances (generic: works for any pair, not just WETH/USDT)
     token0_amount: float = 0.0
     token1_amount: float = 0.0
@@ -106,13 +107,15 @@ class PositionData:
     position_share: float = 0.0  # decimal fraction, e.g. 0.0001 = 0.01%
 
     @classmethod
-    def from_pool_data(cls, pool_data: Dict, strategy: str = "moderate") -> "PositionData":
+    def from_pool_data(
+        cls, pool_data: Dict, strategy: str = "moderate"
+    ) -> "PositionData":
         """
         Factory: build realistic PositionData from DEXScreener pool response.
-        
+
         Generates SIMULATED position data for educational analysis.
         Real positions require on-chain indexing or position NFT ID.
-        
+
         Args:
             pool_data: Dict from DexScreenerClient._extract_pool_info()
             strategy: "conservative", "moderate", or "aggressive" range width
@@ -122,35 +125,47 @@ class PositionData:
         base = pool_data.get("baseToken", {})
         quote = pool_data.get("quoteToken", {})
         volume = pool_data.get("volume24h", 0)
-        apy_est = pool_data.get("estimatedAPY", 0)
-        
+        pool_data.get("estimatedAPY", 0)
+
         # Fee tier estimation based on token pair
         # Uses smart stablecoin detection (defi_cli.stablecoins)
         token0 = base.get("symbol", "TOKEN0").upper()
         token1 = quote.get("symbol", "TOKEN1").upper()
         fee_tier = _estimate_fee_tier(token0, token1)
-        
+
         # Generate realistic position ranges based on strategy
         range_strategies = {
-            "conservative": {"range_pct": 0.50, "capital": DEFAULT_CAPITAL_USD, "description": "Wide range, lower fees, safer"},
-            "moderate": {"range_pct": 0.25, "capital": DEFAULT_CAPITAL_USD, "description": "Balanced risk/reward"},  
-            "aggressive": {"range_pct": 0.10, "capital": DEFAULT_CAPITAL_USD, "description": "Narrow range, high fees, risky"}
+            "conservative": {
+                "range_pct": 0.50,
+                "capital": DEFAULT_CAPITAL_USD,
+                "description": "Wide range, lower fees, safer",
+            },
+            "moderate": {
+                "range_pct": 0.25,
+                "capital": DEFAULT_CAPITAL_USD,
+                "description": "Balanced risk/reward",
+            },
+            "aggressive": {
+                "range_pct": 0.10,
+                "capital": DEFAULT_CAPITAL_USD,
+                "description": "Narrow range, high fees, risky",
+            },
         }
-        
+
         strat = range_strategies.get(strategy, range_strategies["moderate"])
         range_pct = strat["range_pct"]
         capital_usd = strat["capital"]
-        
+
         # Calculate realistic ranges around current price
         range_min = price * (1 - range_pct)
         range_max = price * (1 + range_pct)
-        
+
         # Simulate realistic token amounts for given capital
         # For WETH/stablecoin pairs, assume 50/50 initial allocation
         if price > 0:
             token0_value = capital_usd * 0.5
             token1_value = capital_usd * 0.5
-            
+
             if "WETH" in token0 or "ETH" in token0:
                 weth_amount = token0_value / price
                 stable_amount = token1_value
@@ -159,34 +174,35 @@ class PositionData:
                 stable_amount = token0_value
         else:
             weth_amount = stable_amount = 0
-        
+
         # Estimate realistic fees earned (based on position size vs pool)
         pool_share = capital_usd / max(tvl, 1)  # Position share of pool
         daily_pool_fees = volume * fee_tier
         position_daily_fees = daily_pool_fees * pool_share
         weekly_fees = position_daily_fees * 7
-        
+
         return cls(
             token0_symbol=token0,
-            token1_symbol=token1, 
+            token1_symbol=token1,
             current_price=price,
             range_min=range_min,
             range_max=range_max,
             fee_tier=fee_tier,
-            
             # Simulated position amounts
-            token0_amount=round(weth_amount, 6) if "WETH" in token0 or "ETH" in token0 else round(stable_amount, 2),
-            token1_amount=round(stable_amount, 2) if "USD" in token1 else round(weth_amount, 6),
+            token0_amount=round(weth_amount, 6)
+            if "WETH" in token0 or "ETH" in token0
+            else round(stable_amount, 2),
+            token1_amount=round(stable_amount, 2)
+            if "USD" in token1
+            else round(weth_amount, 6),
             total_value_usd=capital_usd,
             fees_earned_usd=round(weekly_fees, 4),
-            
             # Pool market data
             volume_24h=volume,
             total_value_locked_usd=tvl,
-            
             # Real data
             pool_address=pool_data.get("address", ""),
-            network=pool_data.get("network", "unknown"), 
+            network=pool_data.get("network", "unknown"),
             protocol=pool_data.get("dex", "unknown"),
             token0_pct=50.0,
             token1_pct=50.0,
@@ -196,11 +212,11 @@ class PositionData:
     def from_onchain_data(cls, onchain: Dict, pool_data: Dict) -> "PositionData":
         """
         Factory: build PositionData from REAL on-chain position data.
-        
+
         Args:
             onchain: Dict from PositionReader.read_position() — real blockchain data
             pool_data: Dict from DexScreenerClient — pool market data (volume, TVL)
-        
+
         This combines:
           - On-chain: token amounts, price range, fees, liquidity (REAL)
           - DEXScreener: volume, TVL, transactions (market data)
@@ -212,17 +228,14 @@ class PositionData:
             range_min=onchain.get("price_lower", 0),
             range_max=onchain.get("price_upper", 0),
             fee_tier=onchain.get("fee_tier", 0.0005),
-
             # REAL token amounts from chain
             token0_amount=onchain.get("amount0", 0),
             token1_amount=onchain.get("amount1", 0),
             total_value_usd=onchain.get("total_value_usd", 0),
             fees_earned_usd=onchain.get("total_fees_usd", 0),
-
             # Pool market data from DEXScreener
             volume_24h=pool_data.get("volume24h", 0),
             total_value_locked_usd=pool_data.get("totalValueLockedUSD", 0),
-
             # Identifiers
             position_id=onchain.get("position_id"),
             pool_address=onchain.get("pool_address", ""),
@@ -230,17 +243,17 @@ class PositionData:
             network=onchain.get("network", "unknown"),
             protocol="uniswap_v3",
             protocol_version="v3",
-
             # REAL composition from chain
             token0_pct=onchain.get("token0_pct", 0),
             token1_pct=onchain.get("token1_pct", 0),
-
             # Liquidity share from on-chain
-            position_share=onchain.get("position_share", 0) / 100,  # convert from pct to decimal
+            position_share=onchain.get("position_share", 0)
+            / 100,  # convert from pct to decimal
         )
 
 
 # ── Uniswap V3 Core Math ────────────────────────────────────────────────
+
 
 class UniswapV3Math:
     """
@@ -269,7 +282,7 @@ class UniswapV3Math:
         Convert a tick index back to a price.
         Formula (Whitepaper §6.1): p(i) = 1.0001^i
         """
-        return 1.0001 ** tick
+        return 1.0001**tick
 
     @staticmethod
     def calculate_liquidity(
@@ -371,6 +384,7 @@ class UniswapV3Math:
 
 # ── Risk Analysis ────────────────────────────────────────────────────────
 
+
 class RiskAnalyzer:
     """
     Risk metrics for concentrated liquidity positions.
@@ -430,7 +444,12 @@ class RiskAnalyzer:
         Ref: https://uniswap.org/whitepaper-v3.pdf §2
         """
         if price_initial <= 0 or price_lower <= 0 or price_upper <= price_lower:
-            return {"il_v2_pct": 0, "il_v3_pct": 0, "capital_efficiency": 1, "price_ratio": 1}
+            return {
+                "il_v2_pct": 0,
+                "il_v3_pct": 0,
+                "capital_efficiency": 1,
+                "price_ratio": 1,
+            }
 
         r = price_current / price_initial
         il_v2 = (2 * math.sqrt(r) / (1 + r) - 1) * 100  # percentage
@@ -503,6 +522,7 @@ class RiskAnalyzer:
 
 # ── Strategic Recommendations ──────────────────────────────────────────
 
+
 def generate_position_strategies(
     current_price: float,
     volatility: float = None,
@@ -551,20 +571,20 @@ def generate_position_strategies(
             "range_width_pct": min(80, vol * 1.6),  # 160% of volatility, max 80%
             "risk_level": "Low",
             "description": "Wide range for stability",
-            "ideal_for": "Risk-averse LPs, choppy markets"
+            "ideal_for": "Risk-averse LPs, choppy markets",
         },
         "moderate": {
             "range_width_pct": min(50, vol * 1.0),  # 100% of volatility, max 50%
             "risk_level": "Medium",
             "description": "Balanced risk and rewards",
-            "ideal_for": "Most LPs, trending markets"
+            "ideal_for": "Most LPs, trending markets",
         },
         "aggressive": {
             "range_width_pct": min(20, vol * 0.4),  # 40% of volatility, max 20%
             "risk_level": "High",
             "description": "Narrow range for maximum fees",
-            "ideal_for": "Active managers, stable periods"
-        }
+            "ideal_for": "Active managers, stable periods",
+        },
     }
 
     # Compute real capital efficiency from Whitepaper §2 formula:
@@ -588,7 +608,9 @@ def generate_position_strategies(
 
         # Investment = user's real position value (or $10K fallback)
         sdata["total_value_usd"] = investment
-        sdata["token0_amount"] = (investment * 0.5) / current_price if current_price > 0 else 0
+        sdata["token0_amount"] = (
+            (investment * 0.5) / current_price if current_price > 0 else 0
+        )
         sdata["token1_amount"] = investment * 0.5
 
         # Token symbols for boundary descriptions
@@ -600,7 +622,9 @@ def generate_position_strategies(
         # This answers: "if I moved to this range, how would my APR change?"
         # Ref: Uniswap V3 Whitepaper §2 — fees proportional to virtual liquidity
         if pool_apr > 0:
-            baseline_ce = current_ce if current_ce > 0 else max(sdata["capital_efficiency"], 1.0)
+            baseline_ce = (
+                current_ce if current_ce > 0 else max(sdata["capital_efficiency"], 1.0)
+            )
             eff_ratio = sdata["capital_efficiency"] / max(baseline_ce, 1.0)
             sdata["apr_estimate"] = (pool_apr * eff_ratio) / 100  # decimal
         else:
@@ -617,17 +641,19 @@ def generate_position_strategies(
     return strategies
 
 
-def _classify_current_strategy(range_min: float, range_max: float, current_price: float) -> str:
+def _classify_current_strategy(
+    range_min: float, range_max: float, current_price: float
+) -> str:
     """Classify the current position's strategy based on range width."""
     if range_min <= 0 or range_max <= 0 or current_price <= 0:
         return "unknown"
-    
+
     range_width_pct = ((range_max - range_min) / current_price) * 100
-    
+
     if range_width_pct >= 80:
         return "conservative"
     elif range_width_pct >= 40:
-        return "moderate" 
+        return "moderate"
     else:
         return "aggressive"
 
@@ -670,19 +696,25 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
     # For real IL, initial price = price at deposit time (needs historical data).
     # We compute IL at range boundaries to show worst-case scenarios.
     il_at_lower = risk.impermanent_loss_v3(
-        position.current_price, position.range_min,
-        position.range_min, position.range_max,
+        position.current_price,
+        position.range_min,
+        position.range_min,
+        position.range_max,
     )
     il_at_upper = risk.impermanent_loss_v3(
-        position.current_price, position.range_max,
-        position.range_min, position.range_max,
+        position.current_price,
+        position.range_max,
+        position.range_min,
+        position.range_max,
     )
 
     # Volume/TVL ratio — capital efficiency indicator
     # Higher ratio = more trading activity per dollar locked = potentially better fees
-    vol_tvl_ratio = round(
-        position.volume_24h / max(position.total_value_locked_usd, 1), 4
-    ) if position.total_value_locked_usd > 0 else 0
+    vol_tvl_ratio = (
+        round(position.volume_24h / max(position.total_value_locked_usd, 1), 4)
+        if position.total_value_locked_usd > 0
+        else 0
+    )
 
     # HODL Comparison — "what if I just held 50/50 instead of LPing?"
     # At deposit time, assume 50/50 split at current_price.
@@ -696,21 +728,39 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
         "fees_earned_usd": round(position.fees_earned_usd, 2),
         "il_if_at_lower_pct": il_at_lower["il_v3_pct"],
         "il_if_at_upper_pct": il_at_upper["il_v3_pct"],
-        "il_if_at_lower_usd": round(position.total_value_usd * il_at_lower["il_v3_pct"] / 100, 2),
-        "il_if_at_upper_usd": round(position.total_value_usd * il_at_upper["il_v3_pct"] / 100, 2),
+        "il_if_at_lower_usd": round(
+            position.total_value_usd * il_at_lower["il_v3_pct"] / 100, 2
+        ),
+        "il_if_at_upper_usd": round(
+            position.total_value_usd * il_at_upper["il_v3_pct"] / 100, 2
+        ),
         "net_if_at_lower_usd": round(
-            position.fees_earned_usd + (position.total_value_usd * il_at_lower["il_v3_pct"] / 100), 2
+            position.fees_earned_usd
+            + (position.total_value_usd * il_at_lower["il_v3_pct"] / 100),
+            2,
         ),
         "net_if_at_upper_usd": round(
-            position.fees_earned_usd + (position.total_value_usd * il_at_upper["il_v3_pct"] / 100), 2
+            position.fees_earned_usd
+            + (position.total_value_usd * il_at_upper["il_v3_pct"] / 100),
+            2,
         ),
     }
 
     # Pool-level APR estimate for strategy calculations
-    pool_apr = round(
-        (position.volume_24h * position.fee_tier * 365 / max(position.total_value_locked_usd, 1)) * 100,
-        2,
-    ) if position.total_value_locked_usd > 0 else 0
+    pool_apr = (
+        round(
+            (
+                position.volume_24h
+                * position.fee_tier
+                * 365
+                / max(position.total_value_locked_usd, 1)
+            )
+            * 100,
+            2,
+        )
+        if position.total_value_locked_usd > 0
+        else 0
+    )
 
     # ── Position APR: best available method ──
     #
@@ -722,10 +772,18 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
     #   Pool APR = total_fees_year / TVL — average return per dollar.
     #   User's concentrated position may earn more or less depending on CE.
     #
-    if position.position_share > 0 and position.total_value_usd > 0 and position.volume_24h > 0:
+    if (
+        position.position_share > 0
+        and position.total_value_usd > 0
+        and position.volume_24h > 0
+    ):
         # Method 1: Direct from on-chain position_share (most accurate)
-        daily_fees_from_share = position.volume_24h * position.fee_tier * position.position_share
-        _position_apr = round((daily_fees_from_share * 365 / position.total_value_usd) * 100, 2)
+        daily_fees_from_share = (
+            position.volume_24h * position.fee_tier * position.position_share
+        )
+        _position_apr = round(
+            (daily_fees_from_share * 365 / position.total_value_usd) * 100, 2
+        )
     elif pool_apr > 0:
         # Method 2: Approximate as pool_apr (good for most cases)
         _position_apr = pool_apr
@@ -737,14 +795,14 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
     # the current position's CE for honest "what-if" comparison.
     strategies = generate_position_strategies(
         current_price=position.current_price,
-        pool_apr=_position_apr,      # Use position-specific APR as baseline
+        pool_apr=_position_apr,  # Use position-specific APR as baseline
         volume_24h=position.volume_24h,
         fee_tier=position.fee_tier,
         tvl=position.total_value_locked_usd,
         position_value=position.total_value_usd,
         token0_symbol=position.token0_symbol,
         token1_symbol=position.token1_symbol,
-        current_ce=cap_eff,          # Pass current position's CE for relative scaling
+        current_ce=cap_eff,  # Pass current position's CE for relative scaling
     )
 
     # Fee tier label
@@ -754,7 +812,9 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
         0.003: "0.30%",
         0.01: "1.00%",
     }
-    fee_tier_label = fee_tier_map.get(position.fee_tier, f"{position.fee_tier*100:.2f}%")
+    fee_tier_label = fee_tier_map.get(
+        position.fee_tier, f"{position.fee_tier * 100:.2f}%"
+    )
 
     return {
         # Identity
@@ -766,10 +826,8 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
         "protocol_version": position.protocol_version,
         "token0_symbol": position.token0_symbol,
         "token1_symbol": position.token1_symbol,
-        
         # Data source (real on-chain vs simulated)
         "data_source": "on-chain" if position.position_id else "simulated",
-
         # Token balances
         "token0_amount": position.token0_amount,
         "token1_amount": position.token1_amount,
@@ -778,44 +836,37 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
         "token0_pct": round(position.token0_pct, 2),
         "token1_pct": round(position.token1_pct, 2),
         "total_value_usd": round(position.total_value_usd, 2),
-
         # Prices & range
         "current_price": position.current_price,
         "range_min": position.range_min,
         "range_max": position.range_max,
         "fee_tier": position.fee_tier,
         "fee_tier_label": fee_tier_label,
-
         # Fees earned
         "fees_earned_usd": position.fees_earned_usd,
-
         # Calculated metrics (with formula sources)
         "liquidity": round(liquidity, 4),
         "capital_efficiency_vs_v2": round(cap_eff, 1),
         "in_range": prox["in_range"],
         "downside_buffer_pct": prox["downside_buffer_pct"],
-        "upside_buffer_pct": prox["upside_buffer_pct"], 
+        "upside_buffer_pct": prox["upside_buffer_pct"],
         "position_in_range_pct": prox["position_in_range_pct"],
-
         # NEW: Range width as % of current price
         "range_width_pct": range_width,
-
         # NEW: V3 Impermanent Loss estimates (worst-case at boundaries)
         "il_at_lower_v3_pct": il_at_lower["il_v3_pct"],
         "il_at_upper_v3_pct": il_at_upper["il_v3_pct"],
         "il_at_lower_v2_pct": il_at_lower["il_v2_pct"],
         "il_at_upper_v2_pct": il_at_upper["il_v2_pct"],
-
         # NEW: Volume/TVL ratio (capital efficiency indicator)
         "vol_tvl_ratio": vol_tvl_ratio,
-
         # NEW: HODL comparison — Fees vs IL at boundaries
         "hodl_comparison": hodl_fees_vs_il,
-
         # Strategy recommendations
         "strategies": strategies,
-        "current_strategy": _classify_current_strategy(position.range_min, position.range_max, position.current_price),
-        
+        "current_strategy": _classify_current_strategy(
+            position.range_min, position.range_max, position.current_price
+        ),
         # Enhanced projections for CURRENT position
         # Position APR = pool_apr × (position_CE / baseline_CE)
         # baseline_CE ≈ moderate range CE (±50%) as proxy for pool average
@@ -824,25 +875,44 @@ def analyze_position(position: PositionData) -> Dict[str, Any]:
         # ⚠️ IMPORTANT: These are THEORETICAL estimates based on 24h volume snapshot.
         # Actual avg daily fees may differ by 20-30% due to volume fluctuations.
         # Cross-validate at: https://revert.finance/#/account/<wallet>
-        "position_apr_est": _position_apr if pool_apr > 0 else (
-            round((position.fees_earned_usd * 52 / position.total_value_usd) * 100, 2) if position.total_value_usd > 0 else 0
+        "position_apr_est": _position_apr
+        if pool_apr > 0
+        else (
+            round((position.fees_earned_usd * 52 / position.total_value_usd) * 100, 2)
+            if position.total_value_usd > 0
+            else 0
         ),
-        "daily_fees_est": round(position.total_value_usd * (_position_apr / 100) / 365, 4) if pool_apr > 0 else round(position.fees_earned_usd / 7, 4),
-        "weekly_fees_est": round(position.total_value_usd * (_position_apr / 100) / 52, 4) if pool_apr > 0 else round(position.fees_earned_usd, 4),
-        "monthly_fees_est": round(position.total_value_usd * (_position_apr / 100) / 12, 2) if pool_apr > 0 else round(position.fees_earned_usd * 4.33, 2),
-        "annual_fees_est": round(position.total_value_usd * (_position_apr / 100), 2) if pool_apr > 0 else round(position.fees_earned_usd * 52, 2),
-        "annual_apy_est": _position_apr if pool_apr > 0 else (
-            round((position.fees_earned_usd * 52 / position.total_value_usd) * 100, 2) if position.total_value_usd > 0 else 0
+        "daily_fees_est": round(
+            position.total_value_usd * (_position_apr / 100) / 365, 4
+        )
+        if pool_apr > 0
+        else round(position.fees_earned_usd / 7, 4),
+        "weekly_fees_est": round(
+            position.total_value_usd * (_position_apr / 100) / 52, 4
+        )
+        if pool_apr > 0
+        else round(position.fees_earned_usd, 4),
+        "monthly_fees_est": round(
+            position.total_value_usd * (_position_apr / 100) / 12, 2
+        )
+        if pool_apr > 0
+        else round(position.fees_earned_usd * 4.33, 2),
+        "annual_fees_est": round(position.total_value_usd * (_position_apr / 100), 2)
+        if pool_apr > 0
+        else round(position.fees_earned_usd * 52, 2),
+        "annual_apy_est": _position_apr
+        if pool_apr > 0
+        else (
+            round((position.fees_earned_usd * 52 / position.total_value_usd) * 100, 2)
+            if position.total_value_usd > 0
+            else 0
         ),
-        
         # Market data (now properly included from API)
         "volume_24h": position.volume_24h,
         "total_value_locked_usd": position.total_value_locked_usd,
-        
         # Pool-level APR estimate: (volume_24h × fee_tier × 365) / TVL × 100
         "pool_apr_estimate": pool_apr,
         "pool_24h_fees_est": round(position.volume_24h * position.fee_tier, 2),
-
         # Metadata
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }

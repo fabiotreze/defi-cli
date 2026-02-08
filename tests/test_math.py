@@ -28,6 +28,7 @@ from real_defi_math import (
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
+
 def expected_il(r: float) -> float:
     """Reference impermanent loss: IL = 2√r/(1+r) - 1 (Pintail formula)."""
     return (2 * math.sqrt(r) / (1 + r) - 1) * 100
@@ -39,6 +40,7 @@ def expected_ce(pa: float, pb: float) -> float:
 
 
 # ── Tick ↔ Price Roundtrip (Whitepaper §6.1) ────────────────────────────
+
 
 class TestTickPrice:
     """p(i) = 1.0001^i  ↔  i = floor(log(p)/log(1.0001))"""
@@ -83,17 +85,21 @@ class TestTickPrice:
 
 # ── Impermanent Loss (Pintail 2019) ─────────────────────────────────────
 
+
 class TestImpermanentLoss:
     """IL = 2√r / (1+r) - 1, where r = P_current / P_initial"""
 
-    @pytest.mark.parametrize("ratio,expected", [
-        (1.0, 0.0),         # no change → no IL
-        (1.5, -2.0204),     # 50% up: 2√1.5/(1+1.5)-1 = -2.02%
-        (2.0, -5.7191),     # 2× price
-        (0.5, -5.7191),     # 50% down (symmetric to 2×)
-        (4.0, -20.0),       # 4× price
-        (0.25, -20.0),      # 75% down (symmetric to 4×)
-    ])
+    @pytest.mark.parametrize(
+        "ratio,expected",
+        [
+            (1.0, 0.0),  # no change → no IL
+            (1.5, -2.0204),  # 50% up: 2√1.5/(1+1.5)-1 = -2.02%
+            (2.0, -5.7191),  # 2× price
+            (0.5, -5.7191),  # 50% down (symmetric to 2×)
+            (4.0, -20.0),  # 4× price
+            (0.25, -20.0),  # 75% down (symmetric to 4×)
+        ],
+    )
     def test_known_il_values(self, ratio: float, expected: float):
         initial = 1000.0
         current = initial * ratio
@@ -102,8 +108,8 @@ class TestImpermanentLoss:
 
     def test_il_symmetry(self):
         """IL(2×) == IL(0.5×) — impermanent loss is symmetric around 1."""
-        il_up = RiskAnalyzer.impermanent_loss(1000, 2000)    # r=2
-        il_down = RiskAnalyzer.impermanent_loss(1000, 500)    # r=0.5
+        il_up = RiskAnalyzer.impermanent_loss(1000, 2000)  # r=2
+        il_down = RiskAnalyzer.impermanent_loss(1000, 500)  # r=0.5
         assert il_up == pytest.approx(il_down, abs=0.001)
 
     def test_il_always_negative_or_zero(self):
@@ -134,15 +140,19 @@ class TestImpermanentLoss:
 
 # ── Capital Efficiency (Whitepaper §2) ───────────────────────────────────
 
+
 class TestCapitalEfficiency:
     """CE = 1 / (1 - √(Pa/Pb))"""
 
-    @pytest.mark.parametrize("pa,pb,expected_approx", [
-        (1800, 2200, 10.47),   # 1/(1-√(1800/2200))
-        (1000, 3000, 2.37),    # 1/(1-√(1000/3000))
-        (1500, 2500, 4.44),    # 1/(1-√(1500/2500))
-        (100, 10000, 1.11),    # 1/(1-√(100/10000))
-    ])
+    @pytest.mark.parametrize(
+        "pa,pb,expected_approx",
+        [
+            (1800, 2200, 10.47),  # 1/(1-√(1800/2200))
+            (1000, 3000, 2.37),  # 1/(1-√(1000/3000))
+            (1500, 2500, 4.44),  # 1/(1-√(1500/2500))
+            (100, 10000, 1.11),  # 1/(1-√(100/10000))
+        ],
+    )
     def test_known_ce_values(self, pa, pb, expected_approx):
         result = UniswapV3Math.capital_efficiency_vs_v2(pa, pb)
         assert result == pytest.approx(expected_approx, abs=0.01)
@@ -168,11 +178,12 @@ class TestCapitalEfficiency:
     def test_ce_invalid_returns_one(self):
         assert UniswapV3Math.capital_efficiency_vs_v2(2000, 2000) == 1.0  # equal
         assert UniswapV3Math.capital_efficiency_vs_v2(3000, 2000) == 1.0  # inverted
-        assert UniswapV3Math.capital_efficiency_vs_v2(0, 2000) == 1.0     # zero lower
-        assert UniswapV3Math.capital_efficiency_vs_v2(-1, 2000) == 1.0    # negative
+        assert UniswapV3Math.capital_efficiency_vs_v2(0, 2000) == 1.0  # zero lower
+        assert UniswapV3Math.capital_efficiency_vs_v2(-1, 2000) == 1.0  # negative
 
 
 # ── Liquidity (Whitepaper §6.2) ──────────────────────────────────────────
+
 
 class TestLiquidity:
     """L = Δx / (1/√P - 1/√Pb)"""
@@ -210,6 +221,7 @@ class TestLiquidity:
 
 # ── Fee APY Estimate ─────────────────────────────────────────────────────
 
+
 class TestFeeAPY:
     """APY = (daily_fees / position_value) × 365 × 100"""
 
@@ -244,8 +256,8 @@ class TestFeeAPY:
 
 # ── Range Proximity ──────────────────────────────────────────────────────
 
-class TestRangeProximity:
 
+class TestRangeProximity:
     def test_in_range(self):
         r = RiskAnalyzer.range_proximity(2000, 1800, 2200)
         assert r["in_range"] is True
@@ -279,8 +291,8 @@ class TestRangeProximity:
 
 # ── Strategy Classification ──────────────────────────────────────────────
 
-class TestStrategyClassification:
 
+class TestStrategyClassification:
     def test_conservative(self):
         assert _classify_current_strategy(1000, 3000, 2000) == "conservative"
 
@@ -296,8 +308,8 @@ class TestStrategyClassification:
 
 # ── Strategy Generation ─────────────────────────────────────────────────
 
-class TestStrategies:
 
+class TestStrategies:
     def test_returns_three_strategies(self):
         s = generate_position_strategies(2000)
         assert "conservative" in s
@@ -312,6 +324,7 @@ class TestStrategies:
 
 
 # ── Full Analysis Pipeline ───────────────────────────────────────────────
+
 
 class TestAnalyzePosition:
     """Integration: full pipeline from PositionData → analyze_position()."""
@@ -339,11 +352,19 @@ class TestAnalyzePosition:
     def test_returns_all_core_fields(self, sample_position):
         result = analyze_position(sample_position)
         core_fields = [
-            "current_price", "range_min", "range_max",
-            "liquidity", "capital_efficiency_vs_v2",
-            "in_range", "downside_buffer_pct", "upside_buffer_pct",
-            "total_value_usd", "fee_tier", "fee_tier_label",
-            "strategies", "generated_at",
+            "current_price",
+            "range_min",
+            "range_max",
+            "liquidity",
+            "capital_efficiency_vs_v2",
+            "in_range",
+            "downside_buffer_pct",
+            "upside_buffer_pct",
+            "total_value_usd",
+            "fee_tier",
+            "fee_tier_label",
+            "strategies",
+            "generated_at",
         ]
         for field in core_fields:
             assert field in result, f"Missing field: {field}"
@@ -379,8 +400,12 @@ class TestAnalyzePosition:
 
     def test_il_fields_present(self, sample_position):
         result = analyze_position(sample_position)
-        for field in ["il_at_lower_v3_pct", "il_at_upper_v3_pct",
-                       "il_at_lower_v2_pct", "il_at_upper_v2_pct"]:
+        for field in [
+            "il_at_lower_v3_pct",
+            "il_at_upper_v3_pct",
+            "il_at_lower_v2_pct",
+            "il_at_upper_v2_pct",
+        ]:
             assert field in result, f"Missing IL field: {field}"
 
     def test_il_at_boundaries_negative(self, sample_position):
@@ -437,6 +462,7 @@ class TestAnalyzePosition:
 
 # ── V3 Impermanent Loss Calculations ────────────────────────────────────
 
+
 class TestImpermanentLossV3:
     """Tests for RiskAnalyzer.impermanent_loss_v3() — V3 IL = V2 IL × CE."""
 
@@ -477,6 +503,7 @@ class TestImpermanentLossV3:
 
 
 # ── Range Width % Calculations ──────────────────────────────────────────
+
 
 class TestRangeWidthPct:
     """Tests for RiskAnalyzer.range_width_pct()."""

@@ -8,7 +8,7 @@ This software is provided for EDUCATIONAL and INFORMATIONAL purposes ONLY.
 
 ⚠️ NOT FINANCIAL ADVICE:
 • This tool does NOT provide financial, investment, or trading advice
-• All information is for educational and analytical purposes only  
+• All information is for educational and analytical purposes only
 • No recommendations or investment suggestions are provided
 • Past performance does NOT indicate future results
 • DeFi protocols carry HIGH RISK including total loss of capital
@@ -19,8 +19,6 @@ This software is provided for EDUCATIONAL and INFORMATIONAL purposes ONLY.
 • Users must conduct their own research (DYOR) before any transactions
 • Independent professional advice is recommended for financial decisions
 """
-
-
 
 # Full regulatory compliance text (assigned to a constant — not a dead string literal)
 REGULATORY_COMPLIANCE = """
@@ -141,10 +139,9 @@ By continuing, you ACCEPT total responsibility for your financial decisions.
 """
 
 
-
 def get_jurisdiction_specific_warning(jurisdiction: str = "GLOBAL") -> str:
     """Returns jurisdiction-specific warning with enhanced liability protection."""
-    
+
     warnings = {
         "BR": """
 🇧🇷 BRAZIL: Per CVM regulations, this tool does not offer investment advisory services.
@@ -165,9 +162,7 @@ DEVELOPER WAIVES LIABILITY for financial losses under EU law.
 🌍 GLOBAL: Educational analysis only. No financial advice. High-risk activity.
 Verify local regulations. User assumes all responsibility.
 DEVELOPER NOT RESPONSIBLE for any financial losses or damages.
-        """
+        """,
     }
-    
+
     return warnings.get(jurisdiction, warnings["GLOBAL"])
-
-

@@ -30,9 +30,8 @@ from typing import Dict, List
 
 from defi_cli.rpc_helpers import (
     # Constants
-    Q256, SYMBOL_MAP,
-    # Shared definitions (single source of truth)
-    RPC_URLS, SELECTORS,
+    RPC_URLS,
+    SELECTORS,
     # Encoding
     encode_uint256 as _encode_uint256,
     encode_address as _encode_address,
@@ -53,8 +52,10 @@ from defi_cli.rpc_helpers import (
 try:
     from defi_cli.dex_registry import (
         get_dexes_for_network,
-        get_dex_display_name, get_dex_icon,
+        get_dex_display_name,
+        get_dex_icon,
     )
+
     _HAS_REGISTRY = True
 except ImportError:
     _HAS_REGISTRY = False
@@ -68,6 +69,7 @@ _FALLBACK_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
 
 
 # ── Position Indexer ────────────────────────────────────────────────────
+
 
 class PositionIndexer:
     """
@@ -84,7 +86,9 @@ class PositionIndexer:
 
     def __init__(self, network: str = "arbitrum"):
         if network not in RPC_URLS:
-            raise ValueError(f"Unsupported network: {network}. Available: {list(RPC_URLS.keys())}")
+            raise ValueError(
+                f"Unsupported network: {network}. Available: {list(RPC_URLS.keys())}"
+            )
         self.network = network
         self.rpc_url = RPC_URLS[network]
 
@@ -97,28 +101,36 @@ class PositionIndexer:
         """
         if _HAS_REGISTRY:
             if dex_slug:
-                from defi_cli.dex_registry import get_position_manager_address, get_factory_address
+                from defi_cli.dex_registry import (
+                    get_position_manager_address,
+                    get_factory_address,
+                )
+
                 pm = get_position_manager_address(dex_slug, self.network)
                 factory = get_factory_address(dex_slug, self.network)
                 if pm and factory:
-                    return [{
-                        "slug": dex_slug,
-                        "name": get_dex_display_name(dex_slug),
-                        "icon": get_dex_icon(dex_slug),
-                        "position_manager": pm,
-                        "factory": factory,
-                    }]
+                    return [
+                        {
+                            "slug": dex_slug,
+                            "name": get_dex_display_name(dex_slug),
+                            "icon": get_dex_icon(dex_slug),
+                            "position_manager": pm,
+                            "factory": factory,
+                        }
+                    ]
                 return []
             return get_dexes_for_network(self.network)
         else:
             # Fallback: Uniswap V3 only
-            return [{
-                "slug": "uniswap_v3",
-                "name": "Uniswap V3",
-                "icon": "🦄",
-                "position_manager": _FALLBACK_POSITION_MANAGER,
-                "factory": _FALLBACK_FACTORY,
-            }]
+            return [
+                {
+                    "slug": "uniswap_v3",
+                    "name": "Uniswap V3",
+                    "icon": "🦄",
+                    "position_manager": _FALLBACK_POSITION_MANAGER,
+                    "factory": _FALLBACK_FACTORY,
+                }
+            ]
 
     async def get_position_count(self, wallet: str, position_manager: str) -> int:
         """
@@ -129,7 +141,9 @@ class PositionIndexer:
         result = await _eth_call(self.rpc_url, position_manager, calldata)
         return _decode_uint(result, 0)
 
-    async def get_token_ids(self, wallet: str, count: int, position_manager: str) -> List[int]:
+    async def get_token_ids(
+        self, wallet: str, count: int, position_manager: str
+    ) -> List[int]:
         """
         Get all token IDs for a wallet using tokenOfOwnerByIndex.
         Batches all calls in a single RPC request for efficiency.
@@ -139,7 +153,11 @@ class PositionIndexer:
 
         calls = []
         for i in range(count):
-            calldata = SELECTORS["tokenOfOwnerByIndex"] + _encode_address(wallet) + _encode_uint256(i)
+            calldata = (
+                SELECTORS["tokenOfOwnerByIndex"]
+                + _encode_address(wallet)
+                + _encode_uint256(i)
+            )
             calls.append((position_manager, calldata))
 
         try:
@@ -160,10 +178,14 @@ class PositionIndexer:
                 token_ids.append(_decode_uint(r, 0))
         return token_ids
 
-    async def read_position_summary(self, token_id: int,
-                                     position_manager: str, factory: str,
-                                     dex_slug: str = "uniswap_v3",
-                                     dex_name: str = "Uniswap V3") -> Dict:
+    async def read_position_summary(
+        self,
+        token_id: int,
+        position_manager: str,
+        factory: str,
+        dex_slug: str = "uniswap_v3",
+        dex_name: str = "Uniswap V3",
+    ) -> Dict:
         """
         Read minimal position data for listing purposes.
         Calls positions(tokenId) to get token0, token1, fee, ticks, liquidity.
@@ -174,12 +196,12 @@ class PositionIndexer:
         result = await _eth_call(self.rpc_url, position_manager, calldata)
 
         pos = {
-            "token0":     _decode_address(result, 2),
-            "token1":     _decode_address(result, 3),
-            "fee":        _decode_uint(result, 4),
-            "tickLower":  _decode_int(result, 5),
-            "tickUpper":  _decode_int(result, 6),
-            "liquidity":  _decode_uint(result, 7),
+            "token0": _decode_address(result, 2),
+            "token1": _decode_address(result, 3),
+            "fee": _decode_uint(result, 4),
+            "tickLower": _decode_int(result, 5),
+            "tickUpper": _decode_int(result, 6),
+            "liquidity": _decode_uint(result, 7),
         }
 
         # Step 2: Batch — token symbols + pool address
@@ -239,7 +261,9 @@ class PositionIndexer:
             "factory": factory,
         }
 
-    async def list_positions(self, wallet: str, dex_slug: str | None = None) -> List[Dict]:
+    async def list_positions(
+        self, wallet: str, dex_slug: str | None = None
+    ) -> List[Dict]:
         """
         Discover and list ALL V3-compatible positions for a wallet.
 
@@ -296,11 +320,16 @@ class PositionIndexer:
                 async def _read(tid):
                     try:
                         summary = await self.read_position_summary(
-                            tid, pm, factory,
-                            dex_slug=dex["slug"], dex_name=dex_name,
+                            tid,
+                            pm,
+                            factory,
+                            dex_slug=dex["slug"],
+                            dex_name=dex_name,
                         )
                         status = "🟢 Active" if summary["is_active"] else "⚪ Closed"
-                        print(f"     #{tid} — {summary['pair']} {summary['fee_label']} — {status}")
+                        print(
+                            f"     #{tid} — {summary['pair']} {summary['fee_label']} — {status}"
+                        )
                         return summary
                     except Exception as e:
                         print(f"     #{tid} — ❌ Error: {e}")
@@ -333,7 +362,10 @@ class PositionIndexer:
 
 # ── Standalone CLI ──────────────────────────────────────────────────────
 
-async def _main(wallet: str, network: str = "arbitrum", dex_slug: str | None = None) -> List[Dict]:
+
+async def _main(
+    wallet: str, network: str = "arbitrum", dex_slug: str | None = None
+) -> List[Dict]:
     """Quick test: list all V3-compatible positions for a wallet."""
     indexer = PositionIndexer(network)
     positions = await indexer.list_positions(wallet, dex_slug=dex_slug)
@@ -341,6 +373,7 @@ async def _main(wallet: str, network: str = "arbitrum", dex_slug: str | None = N
     print(f"\n{'=' * 65}")
     if dex_slug:
         from defi_cli.dex_registry import get_dex_display_name
+
         print(f"  {get_dex_display_name(dex_slug)} Positions — {network.title()}")
     else:
         print(f"  All V3-Compatible Positions — {network.title()}")
@@ -353,6 +386,7 @@ async def _main(wallet: str, network: str = "arbitrum", dex_slug: str | None = N
 
     # Group by DEX
     from itertools import groupby
+
     for dex_name, group in groupby(positions, key=lambda p: p["dex_name"]):
         group_list = list(group)
         print(f"\n  {group_list[0].get('dex_slug', '')} — {dex_name}")
@@ -368,7 +402,9 @@ async def _main(wallet: str, network: str = "arbitrum", dex_slug: str | None = N
     print(f"\n{'=' * 65}")
     active = sum(1 for p in positions if p["is_active"])
     dex_count = len(set(p["dex_name"] for p in positions))
-    print(f"  Total: {len(positions)} positions ({active} active) across {dex_count} DEX(es)")
+    print(
+        f"  Total: {len(positions)} positions ({active} active) across {dex_count} DEX(es)"
+    )
     print(f"{'=' * 65}")
 
     return positions
@@ -376,10 +412,13 @@ async def _main(wallet: str, network: str = "arbitrum", dex_slug: str | None = N
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
         print("Usage: python position_indexer.py <wallet_address> [network] [dex_slug]")
         print("  wallet_address : Your Ethereum wallet (0x...)")
-        print("  network        : arbitrum | ethereum | polygon | base | optimism | bsc")
+        print(
+            "  network        : arbitrum | ethereum | polygon | base | optimism | bsc"
+        )
         print("  dex_slug       : uniswap_v3 | pancakeswap_v3 | sushiswap_v3")
         print("                   (omit to scan ALL compatible DEXes)")
         sys.exit(1)

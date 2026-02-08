@@ -42,9 +42,11 @@ from typing import Any, Dict
 
 from defi_cli.rpc_helpers import (
     # Constants
-    Q96, Q128, Q256, SYMBOL_MAP, ABI_WORD_HEX,
-    # Shared definitions (single source of truth)
-    RPC_URLS, SELECTORS,
+    Q96,
+    Q128,
+    Q256,
+    RPC_URLS,
+    SELECTORS,
     # Encoding
     encode_uint256 as _encode_uint256,
     encode_address as _encode_address,
@@ -62,7 +64,7 @@ from defi_cli.rpc_helpers import (
     # Symbol normalization
     normalize_symbol as _normalize_symbol,
 )
-from defi_cli.stablecoins import is_stablecoin, stablecoin_side
+from defi_cli.stablecoins import stablecoin_side
 
 
 # RPC_URLS and SELECTORS are imported from defi_cli.rpc_helpers (single source of truth).
@@ -70,9 +72,12 @@ from defi_cli.stablecoins import is_stablecoin, stablecoin_side
 # ── DEX Registry (multi-DEX support) ────────────────────────────────────
 try:
     from defi_cli.dex_registry import (
-        get_position_manager_address, get_factory_address,
-        get_dex_display_name, get_dex_icon,
+        get_position_manager_address,
+        get_factory_address,
+        get_dex_display_name,
+        get_dex_icon,
     )
+
     _HAS_REGISTRY = True
 except ImportError:
     _HAS_REGISTRY = False
@@ -90,6 +95,7 @@ _FALLBACK_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
 
 # ── Position Reader ─────────────────────────────────────────────────────
 
+
 class PositionReader:
     """
     Reads V3-compatible position data directly from the blockchain.
@@ -105,8 +111,7 @@ class PositionReader:
     def __init__(self, network: str = "arbitrum", dex_slug: str = "uniswap_v3"):
         if network not in RPC_URLS:
             raise ValueError(
-                f"Unsupported network: {network}. "
-                f"Available: {list(RPC_URLS.keys())}"
+                f"Unsupported network: {network}. Available: {list(RPC_URLS.keys())}"
             )
         self.network = network
         self.rpc_url = RPC_URLS[network]
@@ -133,7 +138,9 @@ class PositionReader:
         except Exception:  # noqa: BLE001
             return 0
 
-    async def read_position(self, position_id: int, pool_address: str = None) -> Dict[str, Any]:
+    async def read_position(
+        self, position_id: int, pool_address: str = None
+    ) -> Dict[str, Any]:
         """
         Read complete position data from the blockchain.
 
@@ -149,7 +156,9 @@ class PositionReader:
         # ── Step 0: Validate inputs ────────────────────────────────
         if position_id < 0:
             raise ValueError(f"position_id must be non-negative, got {position_id}")
-        if pool_address and (not pool_address.startswith("0x") or len(pool_address) != 42):
+        if pool_address and (
+            not pool_address.startswith("0x") or len(pool_address) != 42
+        ):
             raise ValueError(f"Invalid pool address: {pool_address}")
 
         # ── Step 0b: Capture block number for audit ──────────────────────
@@ -170,7 +179,7 @@ class PositionReader:
             print("  ⚠️  Position has zero liquidity (may be closed)")
 
         # ── Step 2: Batch read pool state + token info ───────────────
-        print(f"  📊 Reading pool & token state...")
+        print("  📊 Reading pool & token state...")
 
         # Batch: slot0, liquidity, feeGrowthGlobal0, feeGrowthGlobal1,
         #         decimals0, decimals1, symbol0, symbol1
@@ -198,14 +207,14 @@ class PositionReader:
                     batch_results.append("")
 
         # Parse batch results
-        slot0_data        = batch_results[0]
-        pool_liq_data     = batch_results[1]
-        fg0_global_data   = batch_results[2]
-        fg1_global_data   = batch_results[3]
-        dec0_data         = batch_results[4]
-        dec1_data         = batch_results[5]
-        sym0_data         = batch_results[6]
-        sym1_data         = batch_results[7]
+        slot0_data = batch_results[0]
+        pool_liq_data = batch_results[1]
+        fg0_global_data = batch_results[2]
+        fg1_global_data = batch_results[3]
+        dec0_data = batch_results[4]
+        dec1_data = batch_results[5]
+        sym0_data = batch_results[6]
+        sym1_data = batch_results[7]
 
         # Decode pool state
         sqrtPriceX96 = _decode_uint(slot0_data, 0) if slot0_data else 0
@@ -215,48 +224,67 @@ class PositionReader:
         # Decode token info
         decimals0 = _decode_uint(dec0_data, 0) if dec0_data else 18
         decimals1 = _decode_uint(dec1_data, 0) if dec1_data else 6
-        symbol0 = _normalize_symbol(_decode_string(sym0_data)) if sym0_data else "TOKEN0"
-        symbol1 = _normalize_symbol(_decode_string(sym1_data)) if sym1_data else "TOKEN1"
+        symbol0 = (
+            _normalize_symbol(_decode_string(sym0_data)) if sym0_data else "TOKEN0"
+        )
+        symbol1 = (
+            _normalize_symbol(_decode_string(sym1_data)) if sym1_data else "TOKEN1"
+        )
 
         # Decode fee growth globals
         fg0_global = _decode_uint(fg0_global_data, 0) if fg0_global_data else 0
         fg1_global = _decode_uint(fg1_global_data, 0) if fg1_global_data else 0
 
         # ── Step 3: Read tick data for fee computation ───────────────
-        print(f"  💰 Computing uncollected fees...")
+        print("  💰 Computing uncollected fees...")
 
         tick_lower_call = SELECTORS["ticks"] + _encode_int24(pos["tickLower"])
         tick_upper_call = SELECTORS["ticks"] + _encode_int24(pos["tickUpper"])
 
         try:
-            tick_batch = await _eth_call_batch(self.rpc_url, [
-                (pool_address, tick_lower_call),
-                (pool_address, tick_upper_call),
-            ])
+            tick_batch = await _eth_call_batch(
+                self.rpc_url,
+                [
+                    (pool_address, tick_lower_call),
+                    (pool_address, tick_upper_call),
+                ],
+            )
         except Exception:  # noqa: BLE001
             tick_batch = ["", ""]
             try:
-                tick_batch[0] = await _eth_call(self.rpc_url, pool_address, tick_lower_call)
+                tick_batch[0] = await _eth_call(
+                    self.rpc_url, pool_address, tick_lower_call
+                )
             except Exception:  # noqa: BLE001
                 pass
             try:
-                tick_batch[1] = await _eth_call(self.rpc_url, pool_address, tick_upper_call)
+                tick_batch[1] = await _eth_call(
+                    self.rpc_url, pool_address, tick_upper_call
+                )
             except Exception:  # noqa: BLE001
                 pass
 
         # ── Step 4: Compute token amounts ────────────────────────────
         amounts = self._compute_token_amounts(
-            pos["liquidity"], sqrtPriceX96, current_tick,
-            pos["tickLower"], pos["tickUpper"],
-            decimals0, decimals1,
+            pos["liquidity"],
+            sqrtPriceX96,
+            current_tick,
+            pos["tickLower"],
+            pos["tickUpper"],
+            decimals0,
+            decimals1,
         )
 
         # ── Step 5: Compute uncollected fees ─────────────────────────
         fees = self._compute_fees(
-            pos, current_tick,
-            fg0_global, fg1_global,
-            tick_batch[0], tick_batch[1],
-            decimals0, decimals1,
+            pos,
+            current_tick,
+            fg0_global,
+            fg1_global,
+            tick_batch[0],
+            tick_batch[1],
+            decimals0,
+            decimals1,
         )
 
         # ── Step 6: Compute prices ───────────────────────────────────
@@ -278,7 +306,9 @@ class PositionReader:
         elif stable_idx == 0:
             # token0 is stablecoin — token1 is priced as 1/price
             token0_value_usd = amounts["amount0"]
-            token1_value_usd = amounts["amount1"] / current_price if current_price > 0 else 0
+            token1_value_usd = (
+                amounts["amount1"] / current_price if current_price > 0 else 0
+            )
             fee0_value_usd = fees["fees0"]
             fee1_value_usd = fees["fees1"] / current_price if current_price > 0 else 0
         else:
@@ -291,25 +321,32 @@ class PositionReader:
         total_fees_usd = fee0_value_usd + fee1_value_usd
 
         # Composition percentages
-        t0_pct = (token0_value_usd / total_value_usd * 100) if total_value_usd > 0 else 0
-        t1_pct = (token1_value_usd / total_value_usd * 100) if total_value_usd > 0 else 0
+        t0_pct = (
+            (token0_value_usd / total_value_usd * 100) if total_value_usd > 0 else 0
+        )
+        t1_pct = (
+            (token1_value_usd / total_value_usd * 100) if total_value_usd > 0 else 0
+        )
 
         in_range = pos["tickLower"] <= current_tick < pos["tickUpper"]
 
         # ── Step 8: Position share of pool liquidity ─────────────────
-        position_share = (pos["liquidity"] / pool_liquidity) if pool_liquidity > 0 else 0
+        position_share = (
+            (pos["liquidity"] / pool_liquidity) if pool_liquidity > 0 else 0
+        )
 
         fee_tier = pos["fee"] / 1_000_000  # e.g., 500 → 0.0005
 
-        print(f"  ✅ Position data loaded: ${total_value_usd:,.2f} | "
-              f"{'In Range' if in_range else 'OUT OF RANGE'}")
+        print(
+            f"  ✅ Position data loaded: ${total_value_usd:,.2f} | "
+            f"{'In Range' if in_range else 'OUT OF RANGE'}"
+        )
 
         return {
             # Identity
             "position_id": position_id,
             "pool_address": pool_address,
             "network": self.network,
-
             # Tokens
             "token0_address": pos["token0"],
             "token1_address": pos["token1"],
@@ -317,56 +354,46 @@ class PositionReader:
             "token1_symbol": symbol1,
             "token0_decimals": decimals0,
             "token1_decimals": decimals1,
-
             # Fee tier
-            "fee_raw": pos["fee"],         # 500 = 0.05%
-            "fee_tier": fee_tier,          # 0.0005
-
+            "fee_raw": pos["fee"],  # 500 = 0.05%
+            "fee_tier": fee_tier,  # 0.0005
             # On-chain position state
             "liquidity_raw": pos["liquidity"],
             "tickLower": pos["tickLower"],
             "tickUpper": pos["tickUpper"],
             "in_range": in_range,
-
             # Prices (token1 per token0, e.g., USDT per WETH)
             "current_price": round(current_price, 6),
             "price_lower": round(price_lower, 6),
             "price_upper": round(price_upper, 6),
-
             # Token amounts (human-readable)
             "amount0": round(amounts["amount0"], 8),
             "amount1": round(amounts["amount1"], 8),
             "token0_value_usd": round(token0_value_usd, 2),
             "token1_value_usd": round(token1_value_usd, 2),
             "total_value_usd": round(total_value_usd, 2),
-
             # Composition
             "token0_pct": round(t0_pct, 2),
             "token1_pct": round(t1_pct, 2),
-
             # Uncollected fees
             "fees0": round(fees["fees0"], 8),
             "fees1": round(fees["fees1"], 8),
             "fee0_value_usd": round(fee0_value_usd, 2),
             "fee1_value_usd": round(fee1_value_usd, 2),
             "total_fees_usd": round(total_fees_usd, 2),
-
             # Pool state
             "pool_liquidity": pool_liquidity,
             "position_share": round(position_share * 100, 6),  # percentage
             "sqrtPriceX96": sqrtPriceX96,
             "pool_tick": current_tick,
-
             # Data source & audit trail
             "data_source": "on-chain",
             "rpc_endpoint": self.rpc_url,
             "block_number": block_number,
-
             # Audit trail: raw on-chain values for independent verification
             # DEX identification
             "dex_slug": self.dex_slug,
             "dex_name": self.dex_name,
-
             "audit_trail": {
                 "block_number": block_number,
                 "rpc_endpoint": self.rpc_url,
@@ -382,7 +409,8 @@ class PositionReader:
                         "label": "positions(uint256)",
                         "to": self.position_manager,
                         "selector": SELECTORS["positions"],
-                        "calldata": SELECTORS["positions"] + hex(position_id)[2:].zfill(64),
+                        "calldata": SELECTORS["positions"]
+                        + hex(position_id)[2:].zfill(64),
                         "decoded": {
                             "liquidity": pos["liquidity"],
                             "tickLower": pos["tickLower"],
@@ -448,18 +476,18 @@ class PositionReader:
         result = await _eth_call(self.rpc_url, self.position_manager, calldata)
 
         return {
-            "nonce":                       _decode_uint(result, 0),
-            "operator":                    _decode_address(result, 1),
-            "token0":                      _decode_address(result, 2),
-            "token1":                      _decode_address(result, 3),
-            "fee":                         _decode_uint(result, 4),
-            "tickLower":                   _decode_int(result, 5),
-            "tickUpper":                   _decode_int(result, 6),
-            "liquidity":                   _decode_uint(result, 7),
-            "feeGrowthInside0LastX128":    _decode_uint(result, 8),
-            "feeGrowthInside1LastX128":    _decode_uint(result, 9),
-            "tokensOwed0":                 _decode_uint(result, 10),
-            "tokensOwed1":                 _decode_uint(result, 11),
+            "nonce": _decode_uint(result, 0),
+            "operator": _decode_address(result, 1),
+            "token0": _decode_address(result, 2),
+            "token1": _decode_address(result, 3),
+            "fee": _decode_uint(result, 4),
+            "tickLower": _decode_int(result, 5),
+            "tickUpper": _decode_int(result, 6),
+            "liquidity": _decode_uint(result, 7),
+            "feeGrowthInside0LastX128": _decode_uint(result, 8),
+            "feeGrowthInside1LastX128": _decode_uint(result, 9),
+            "tokensOwed0": _decode_uint(result, 10),
+            "tokensOwed1": _decode_uint(result, 11),
         }
 
     # ── Internal: Resolve pool address from Factory ──────────────────
@@ -527,8 +555,8 @@ class PositionReader:
             amount1_raw = liquidity * (sqrtP - sqrtPl)
 
         return {
-            "amount0": amount0_raw / (10 ** decimals0),
-            "amount1": amount1_raw / (10 ** decimals1),
+            "amount0": amount0_raw / (10**decimals0),
+            "amount1": amount1_raw / (10**decimals1),
         }
 
     # ── Internal: Compute uncollected fees ───────────────────────────
@@ -588,22 +616,26 @@ class PositionReader:
 
             # Uncollected fees
             liq = pos["liquidity"]
-            fees0_raw = (liq * ((fg0_inside - pos["feeGrowthInside0LastX128"]) % Q256)) // Q128
-            fees1_raw = (liq * ((fg1_inside - pos["feeGrowthInside1LastX128"]) % Q256)) // Q128
+            fees0_raw = (
+                liq * ((fg0_inside - pos["feeGrowthInside0LastX128"]) % Q256)
+            ) // Q128
+            fees1_raw = (
+                liq * ((fg1_inside - pos["feeGrowthInside1LastX128"]) % Q256)
+            ) // Q128
 
             # Add tokensOwed (fees already checkpointed but not yet collected)
             fees0_raw += pos.get("tokensOwed0", 0)
             fees1_raw += pos.get("tokensOwed1", 0)
 
             return {
-                "fees0": fees0_raw / (10 ** decimals0),
-                "fees1": fees1_raw / (10 ** decimals1),
+                "fees0": fees0_raw / (10**decimals0),
+                "fees1": fees1_raw / (10**decimals1),
             }
 
         except Exception as e:
             print(f"  ⚠️  Fee computation fallback (tokensOwed only): {e}")
-            fees0 = pos.get("tokensOwed0", 0) / (10 ** decimals0)
-            fees1 = pos.get("tokensOwed1", 0) / (10 ** decimals1)
+            fees0 = pos.get("tokensOwed0", 0) / (10**decimals0)
+            fees1 = pos.get("tokensOwed1", 0) / (10**decimals1)
             return {"fees0": fees0, "fees1": fees1}
 
     # ── Internal: Price conversions ──────────────────────────────────
@@ -626,20 +658,19 @@ class PositionReader:
         raw_price = sqrtP * sqrtP
         return raw_price * (10 ** (decimals0 - decimals1))
 
-    def _tick_to_price(
-        self, tick: int, decimals0: int, decimals1: int
-    ) -> float:
+    def _tick_to_price(self, tick: int, decimals0: int, decimals1: int) -> float:
         """
         Convert tick index to human-readable price.
 
         Formula (Whitepaper §6.1):
           p(i) = 1.0001^i × 10^(decimals0 − decimals1)
         """
-        raw_price = 1.0001 ** tick
+        raw_price = 1.0001**tick
         return raw_price * (10 ** (decimals0 - decimals1))
 
 
 # ── Standalone Test ──────────────────────────────────────────────────────
+
 
 async def _test_position(
     position_id: int,
@@ -656,22 +687,36 @@ async def _test_position(
     data = await reader.read_position(position_id, pool_address)
 
     print("\n" + "=" * 60)
-    print(f"  Position #{data['position_id']} — {data['token0_symbol']}/{data['token1_symbol']}")
+    print(
+        f"  Position #{data['position_id']} — {data['token0_symbol']}/{data['token1_symbol']}"
+    )
     print(f"  DEX: {data.get('dex_name', 'Uniswap V3')}")
-    print(f"  Network: {data['network'].title()} | Pool: {data['pool_address'][:16]}...")
+    print(
+        f"  Network: {data['network'].title()} | Pool: {data['pool_address'][:16]}..."
+    )
     print("=" * 60)
     print(f"  Status     : {'🟢 In Range' if data['in_range'] else '🔴 Out of Range'}")
-    print(f"  Fee Tier   : {data['fee_tier']*100:.2f}%")
-    print(f"  Price Now  : {data['current_price']:,.2f} {data['token1_symbol']}/{data['token0_symbol']}")
+    print(f"  Fee Tier   : {data['fee_tier'] * 100:.2f}%")
+    print(
+        f"  Price Now  : {data['current_price']:,.2f} {data['token1_symbol']}/{data['token0_symbol']}"
+    )
     print(f"  Range      : {data['price_lower']:,.2f} – {data['price_upper']:,.2f}")
     print()
     print(f"  Position Value: ${data['total_value_usd']:,.2f}")
-    print(f"    {data['token0_symbol']}: {data['amount0']:.6f} (${data['token0_value_usd']:,.2f} · {data['token0_pct']:.1f}%)")
-    print(f"    {data['token1_symbol']}: {data['amount1']:.6f} (${data['token1_value_usd']:,.2f} · {data['token1_pct']:.1f}%)")
+    print(
+        f"    {data['token0_symbol']}: {data['amount0']:.6f} (${data['token0_value_usd']:,.2f} · {data['token0_pct']:.1f}%)"
+    )
+    print(
+        f"    {data['token1_symbol']}: {data['amount1']:.6f} (${data['token1_value_usd']:,.2f} · {data['token1_pct']:.1f}%)"
+    )
     print()
     print(f"  Uncollected Fees: ${data['total_fees_usd']:,.2f}")
-    print(f"    {data['token0_symbol']}: {data['fees0']:.8f} (${data['fee0_value_usd']:,.2f})")
-    print(f"    {data['token1_symbol']}: {data['fees1']:.8f} (${data['fee1_value_usd']:,.2f})")
+    print(
+        f"    {data['token0_symbol']}: {data['fees0']:.8f} (${data['fee0_value_usd']:,.2f})"
+    )
+    print(
+        f"    {data['token1_symbol']}: {data['fees1']:.8f} (${data['fee1_value_usd']:,.2f})"
+    )
     print()
     print(f"  Pool Share : {data['position_share']:.4f}%")
     print(f"  Data Source: {data['data_source']}")
@@ -682,16 +727,25 @@ async def _test_position(
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
-        print("Usage: python position_reader.py <position_id> [pool_address] [network] [dex_slug]")
+        print(
+            "Usage: python position_reader.py <position_id> [pool_address] [network] [dex_slug]"
+        )
         print("  position_id  : V3 NFT token ID (integer)")
-        print("  pool_address : Pool contract address (0x...) — auto-detected if omitted")
+        print(
+            "  pool_address : Pool contract address (0x...) — auto-detected if omitted"
+        )
         print("  network      : arbitrum | ethereum | polygon | base | optimism | bsc")
         print("  dex_slug     : uniswap_v3 | pancakeswap_v3 | sushiswap_v3")
         sys.exit(1)
     pos_id = int(sys.argv[1])
     pool = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2].startswith("0x") else None
-    net = sys.argv[-1] if len(sys.argv) > 2 and not sys.argv[-1].startswith("0x") else "arbitrum"
+    net = (
+        sys.argv[-1]
+        if len(sys.argv) > 2 and not sys.argv[-1].startswith("0x")
+        else "arbitrum"
+    )
     if len(sys.argv) > 3:
         net = sys.argv[3]
     dex = "uniswap_v3"

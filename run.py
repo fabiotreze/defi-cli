@@ -43,14 +43,19 @@ except ImportError:
     PROJECT_NAME = "DeFi CLI"
 
 from defi_cli.commands import (
-    cmd_info, cmd_scout, cmd_pool, cmd_list, cmd_report, cmd_check,
-    _simple_disclaimer, _prompt_address,
+    cmd_info,
+    cmd_scout,
+    cmd_pool,
+    cmd_list,
+    cmd_report,
+    cmd_check,
+    _simple_disclaimer,
+    _prompt_address,
 )
 
 
-
-
 # ── CLI Parser ────────────────────────────────────────────────────────────
+
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -93,55 +98,109 @@ Sources:
   GitHub           : https://github.com/fabiotreze/defi-cli
 """,
     )
-    parser.add_argument("--version", action="version",
-                        version=f"DeFi CLI v{PROJECT_VERSION}")
+    parser.add_argument(
+        "--version", action="version", version=f"DeFi CLI v{PROJECT_VERSION}"
+    )
 
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
     # list command — scans ALL compatible DEXes
-    list_p = sub.add_parser("list", help="List all V3-compatible positions for a wallet")
+    list_p = sub.add_parser(
+        "list", help="List all V3-compatible positions for a wallet"
+    )
     list_p.add_argument("wallet", help="Wallet address (0x…)")
-    list_p.add_argument("--network", type=str, default="arbitrum",
-                        help="Network: arbitrum, ethereum, polygon, base, optimism, bsc (default: arbitrum)")
-    list_p.add_argument("--dex", type=str, default=None,
-                        help="Filter by DEX: uniswap_v3, pancakeswap_v3, sushiswap_v3 (default: all)")
+    list_p.add_argument(
+        "--network",
+        type=str,
+        default="arbitrum",
+        help="Network: arbitrum, ethereum, polygon, base, optimism, bsc (default: arbitrum)",
+    )
+    list_p.add_argument(
+        "--dex",
+        type=str,
+        default=None,
+        help="Filter by DEX: uniswap_v3, pancakeswap_v3, sushiswap_v3 (default: all)",
+    )
 
     pool_p = sub.add_parser("pool", help="Analyze a pool (DEXScreener)")
-    pool_p.add_argument("--pool", type=str, default=None, help="Pool or token contract address (0x…)")
+    pool_p.add_argument(
+        "--pool", type=str, default=None, help="Pool or token contract address (0x…)"
+    )
 
     report_p = sub.add_parser("report", help="Generate HTML pool report")
-    report_p.add_argument("--pool", type=str, default=None, help="Pool contract address (0x…) — optional when --position is given (auto-detected via Factory.getPool)")
-    report_p.add_argument("--position", type=int, default=None,
-                          help="V3 position NFT tokenId (uint256). Pool is auto-detected via Factory.getPool(token0, token1, fee). "
-                               "Find it: app.uniswap.org → Pool → position URL → /positions/v3/<net>/<tokenId>")
-    report_p.add_argument("--wallet", type=str, default=None,
-                          help="Your wallet address (0x…) for cross-validation links")
-    report_p.add_argument("--network", type=str, default=None,
-                          help="Network: arbitrum, ethereum, polygon, base, optimism, bsc (auto-detected if omitted)")
-    report_p.add_argument("--dex", type=str, default=None,
-                          help="DEX: uniswap_v3, pancakeswap_v3, sushiswap_v3 (default: uniswap_v3)")
+    report_p.add_argument(
+        "--pool",
+        type=str,
+        default=None,
+        help="Pool contract address (0x…) — optional when --position is given (auto-detected via Factory.getPool)",
+    )
+    report_p.add_argument(
+        "--position",
+        type=int,
+        default=None,
+        help="V3 position NFT tokenId (uint256). Pool is auto-detected via Factory.getPool(token0, token1, fee). "
+        "Find it: app.uniswap.org → Pool → position URL → /positions/v3/<net>/<tokenId>",
+    )
+    report_p.add_argument(
+        "--wallet",
+        type=str,
+        default=None,
+        help="Your wallet address (0x…) for cross-validation links",
+    )
+    report_p.add_argument(
+        "--network",
+        type=str,
+        default=None,
+        help="Network: arbitrum, ethereum, polygon, base, optimism, bsc (auto-detected if omitted)",
+    )
+    report_p.add_argument(
+        "--dex",
+        type=str,
+        default=None,
+        help="DEX: uniswap_v3, pancakeswap_v3, sushiswap_v3 (default: uniswap_v3)",
+    )
 
     sub.add_parser("check", help="Run integration validation")
     sub.add_parser("info", help="System & architecture info")
 
     # scout command — cross-DEX pool discovery via DefiLlama
-    scout_p = sub.add_parser("scout", help="Find best V3 pools for a token pair (DefiLlama)")
+    scout_p = sub.add_parser(
+        "scout", help="Find best V3 pools for a token pair (DefiLlama)"
+    )
     scout_p.add_argument("pair", help="Token pair, e.g. WETH/USDC")
-    scout_p.add_argument("--network", type=str, default=None,
-                         help="Filter by network: arbitrum, ethereum, polygon, base, optimism, bsc")
-    scout_p.add_argument("--dex", type=str, default=None,
-                         help="Filter by DEX: uniswap_v3, pancakeswap_v3, sushiswap_v3")
-    scout_p.add_argument("--sort", type=str, default="apy",
-                         help="Sort by: apy, tvl, volume, efficiency (default: apy)")
-    scout_p.add_argument("--limit", type=int, default=15,
-                         help="Max results (default: 15)")
-    scout_p.add_argument("--min-tvl", type=float, default=50000,
-                         help="Minimum TVL in USD (default: 50000)")
+    scout_p.add_argument(
+        "--network",
+        type=str,
+        default=None,
+        help="Filter by network: arbitrum, ethereum, polygon, base, optimism, bsc",
+    )
+    scout_p.add_argument(
+        "--dex",
+        type=str,
+        default=None,
+        help="Filter by DEX: uniswap_v3, pancakeswap_v3, sushiswap_v3",
+    )
+    scout_p.add_argument(
+        "--sort",
+        type=str,
+        default="apy",
+        help="Sort by: apy, tvl, volume, efficiency (default: apy)",
+    )
+    scout_p.add_argument(
+        "--limit", type=int, default=15, help="Max results (default: 15)"
+    )
+    scout_p.add_argument(
+        "--min-tvl",
+        type=float,
+        default=50000,
+        help="Minimum TVL in USD (default: 50000)",
+    )
 
     return parser
 
 
 # ── Main ──────────────────────────────────────────────────────────────────
+
 
 def main() -> int:
     parser = create_parser()
@@ -160,24 +219,28 @@ def main() -> int:
         return 0 if ok else 1
 
     if args.command == "scout":
-        asyncio.run(cmd_scout(
-            pair=args.pair,
-            network=args.network,
-            dex=args.dex,
-            sort=args.sort,
-            limit=args.limit,
-            min_tvl=args.min_tvl,
-        ))
+        asyncio.run(
+            cmd_scout(
+                pair=args.pair,
+                network=args.network,
+                dex=args.dex,
+                sort=args.sort,
+                limit=args.limit,
+                min_tvl=args.min_tvl,
+            )
+        )
         return 0
     if args.command == "list":
         if not _simple_disclaimer():
             print("❌ Consent required.")
             return 1
-        asyncio.run(cmd_list(
-            wallet=args.wallet,
-            network=args.network,
-            dex=args.dex,
-        ))
+        asyncio.run(
+            cmd_list(
+                wallet=args.wallet,
+                network=args.network,
+                dex=args.dex,
+            )
+        )
         return 0
 
     # Consent-required commands
@@ -213,4 +276,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n❌ Cancelled.")
         sys.exit(130)
-

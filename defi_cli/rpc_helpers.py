@@ -27,19 +27,19 @@ from typing import List, Tuple
 # ── ABI Word Constants ──────────────────────────────────────────────────
 # Ethereum ABI spec: https://docs.soliditylang.org/en/latest/abi-spec.html
 
-ABI_WORD_BYTES = 32          # 1 ABI word = 32 bytes
-ABI_WORD_HEX = 64            # 32 bytes × 2 hex chars = 64 hex characters
-ADDRESS_BYTES = 20            # Ethereum address = 20 bytes
-ADDRESS_HEX = 40              # 20 bytes × 2 = 40 hex characters
-ADDRESS_PAD_HEX = 24          # Left padding in a 32-byte slot = 64 - 40 = 24 hex chars
-SIGN_BIT = 1 << 255           # Two's complement sign bit for int256
+ABI_WORD_BYTES = 32  # 1 ABI word = 32 bytes
+ABI_WORD_HEX = 64  # 32 bytes × 2 hex chars = 64 hex characters
+ADDRESS_BYTES = 20  # Ethereum address = 20 bytes
+ADDRESS_HEX = 40  # 20 bytes × 2 = 40 hex characters
+ADDRESS_PAD_HEX = 24  # Left padding in a 32-byte slot = 64 - 40 = 24 hex chars
+SIGN_BIT = 1 << 255  # Two's complement sign bit for int256
 
 # ── Uniswap V3 Fixed-Point Constants ───────────────────────────────────
 # Ref: Uniswap V3 Whitepaper §6.1 — https://uniswap.org/whitepaper-v3.pdf
 
-Q96 = 2 ** 96                # sqrtPriceX96 denominator (FixedPoint96.RESOLUTION)
-Q128 = 2 ** 128              # feeGrowthGlobalX128 denominator (FixedPoint128.Q128)
-Q256 = 2 ** 256              # int256 overflow boundary (two's complement wrap)
+Q96 = 2**96  # sqrtPriceX96 denominator (FixedPoint96.RESOLUTION)
+Q128 = 2**128  # feeGrowthGlobalX128 denominator (FixedPoint128.Q128)
+Q256 = 2**256  # int256 overflow boundary (two's complement wrap)
 
 # ── Common Token Symbol Normalization ───────────────────────────────────
 # Some on-chain symbols use non-standard Unicode or suffixes.
@@ -82,27 +82,25 @@ RPC_URLS: dict[str, str] = {
 
 SELECTORS: dict[str, str] = {
     # NonfungiblePositionManager (ERC-721 Enumerable)
-    "balanceOf":              "0x70a08231",  # balanceOf(address)
-    "tokenOfOwnerByIndex":    "0x2f745c59",  # tokenOfOwnerByIndex(address,uint256)
-    "positions":              "0x99fbab88",  # positions(uint256)
-
+    "balanceOf": "0x70a08231",  # balanceOf(address)
+    "tokenOfOwnerByIndex": "0x2f745c59",  # tokenOfOwnerByIndex(address,uint256)
+    "positions": "0x99fbab88",  # positions(uint256)
     # UniswapV3Pool (read-only state)
-    "slot0":                  "0x3850c7bd",  # slot0()
-    "liquidity":              "0x1a686502",  # liquidity()
-    "feeGrowthGlobal0X128":   "0xf3058399",  # feeGrowthGlobal0X128()
-    "feeGrowthGlobal1X128":   "0x46141319",  # feeGrowthGlobal1X128()
-    "ticks":                  "0xf30dba93",  # ticks(int24)
-
+    "slot0": "0x3850c7bd",  # slot0()
+    "liquidity": "0x1a686502",  # liquidity()
+    "feeGrowthGlobal0X128": "0xf3058399",  # feeGrowthGlobal0X128()
+    "feeGrowthGlobal1X128": "0x46141319",  # feeGrowthGlobal1X128()
+    "ticks": "0xf30dba93",  # ticks(int24)
     # UniswapV3Factory
-    "getPool":                "0x1698ee82",  # getPool(address,address,uint24)
-
+    "getPool": "0x1698ee82",  # getPool(address,address,uint24)
     # ERC-20 metadata
-    "symbol":                 "0x95d89b41",  # symbol()
-    "decimals":               "0x313ce567",  # decimals()
+    "symbol": "0x95d89b41",  # symbol()
+    "decimals": "0x313ce567",  # decimals()
 }
 
 
 # ── ABI Encoding ────────────────────────────────────────────────────────
+
 
 def encode_uint256(value: int) -> str:
     """ABI-encode a uint256 as 32-byte hex (no 0x prefix).
@@ -110,7 +108,7 @@ def encode_uint256(value: int) -> str:
     >>> encode_uint256(1)
     '0000000000000000000000000000000000000000000000000000000000000001'
     """
-    return format(value, f'0{ABI_WORD_HEX}x')
+    return format(value, f"0{ABI_WORD_HEX}x")
 
 
 def encode_address(addr: str) -> str:
@@ -128,7 +126,7 @@ def encode_uint24(val: int) -> str:
     >>> encode_uint24(3000)
     '0000000000000000000000000000000000000000000000000000000000000bb8'
     """
-    return format(val, f'0{ABI_WORD_HEX}x')
+    return format(val, f"0{ABI_WORD_HEX}x")
 
 
 def encode_int24(value: int) -> str:
@@ -139,10 +137,11 @@ def encode_int24(value: int) -> str:
     """
     if value < 0:
         value = Q256 + value
-    return format(value, f'0{ABI_WORD_HEX}x')
+    return format(value, f"0{ABI_WORD_HEX}x")
 
 
 # ── ABI Decoding ────────────────────────────────────────────────────────
+
 
 def decode_uint(hex_data: str, slot: int = 0) -> int:
     """Decode uint256 from ABI response at 32-byte slot offset.
@@ -152,7 +151,7 @@ def decode_uint(hex_data: str, slot: int = 0) -> int:
         slot: Which 32-byte word to read (0-indexed).
     """
     start = slot * ABI_WORD_HEX
-    return int(hex_data[start:start + ABI_WORD_HEX], 16)
+    return int(hex_data[start : start + ABI_WORD_HEX], 16)
 
 
 def decode_int(hex_data: str, slot: int = 0) -> int:
@@ -176,7 +175,7 @@ def decode_address(hex_data: str, slot: int = 0) -> str:
         slot: Which 32-byte word to read (0-indexed).
     """
     start = slot * ABI_WORD_HEX
-    return "0x" + hex_data[start + ADDRESS_PAD_HEX:start + ABI_WORD_HEX]
+    return "0x" + hex_data[start + ADDRESS_PAD_HEX : start + ABI_WORD_HEX]
 
 
 def decode_string(hex_data: str) -> str:
@@ -190,7 +189,7 @@ def decode_string(hex_data: str) -> str:
         word_offset = offset // ABI_WORD_BYTES
         length = decode_uint(hex_data, word_offset)
         start_byte = (word_offset + 1) * ABI_WORD_HEX
-        hex_str = hex_data[start_byte:start_byte + length * 2]
+        hex_str = hex_data[start_byte : start_byte + length * 2]
         return bytes.fromhex(hex_str).decode("utf-8").strip("\x00")
     except Exception:
         # Fallback: Some tokens return bytes32 instead of string
@@ -202,6 +201,7 @@ def decode_string(hex_data: str) -> str:
 
 
 # ── JSON-RPC Client ─────────────────────────────────────────────────────
+
 
 async def eth_call(rpc_url: str, to: str, data: str, timeout: int = 20) -> str:
     """
@@ -229,14 +229,20 @@ async def eth_call(rpc_url: str, to: str, data: str, timeout: int = 20) -> str:
         resp = await client.post(rpc_url, json=payload)
         result = resp.json()
         if "error" in result:
-            raise RuntimeError(f"RPC error: {result['error'].get('message', result['error'])}")
+            raise RuntimeError(
+                f"RPC error: {result['error'].get('message', result['error'])}"
+            )
         raw = result.get("result", "0x")
         if raw == "0x" or len(raw) < 4:
-            raise RuntimeError("Empty response — contract may not exist at this address")
+            raise RuntimeError(
+                "Empty response — contract may not exist at this address"
+            )
         return raw[2:]  # strip 0x prefix
 
 
-async def eth_call_batch(rpc_url: str, calls: List[Tuple[str, str]], timeout: int = 20) -> List[str]:
+async def eth_call_batch(
+    rpc_url: str, calls: List[Tuple[str, str]], timeout: int = 20
+) -> List[str]:
     """
     Batch multiple eth_call requests into a single HTTP request.
 
@@ -250,12 +256,14 @@ async def eth_call_batch(rpc_url: str, calls: List[Tuple[str, str]], timeout: in
     """
     payloads = []
     for i, (to, data) in enumerate(calls):
-        payloads.append({
-            "jsonrpc": "2.0",
-            "id": i + 1,
-            "method": "eth_call",
-            "params": [{"to": to, "data": data}, "latest"],
-        })
+        payloads.append(
+            {
+                "jsonrpc": "2.0",
+                "id": i + 1,
+                "method": "eth_call",
+                "params": [{"to": to, "data": data}, "latest"],
+            }
+        )
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(rpc_url, json=payloads)

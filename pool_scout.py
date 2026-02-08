@@ -52,10 +52,11 @@ NETWORK_TO_CHAIN = {
 
 # ── Pool Scout ────────────────────────────────────────────────────────────
 
+
 class PoolScout:
     """
     Cross-DEX pool discovery engine powered by DefiLlama Yields API.
-    
+
     One HTTP call to https://yields.llama.fi/pools returns all V3 pool
     data across every DEX and chain — APY, TVL, volume, IL risk, fee tier.
     No API key required. 100% free.
@@ -69,8 +70,11 @@ class PoolScout:
     async def _fetch_pools(self) -> List[Dict]:
         """Fetch all pools from DefiLlama yields API (cached)."""
         now = datetime.now()
-        if (self._cache is not None and self._cache_time is not None
-                and (now - self._cache_time).total_seconds() < self._cache_ttl_seconds):
+        if (
+            self._cache is not None
+            and self._cache_time is not None
+            and (now - self._cache_time).total_seconds() < self._cache_ttl_seconds
+        ):
             return self._cache
 
         async with httpx.AsyncClient(timeout=DEFILLAMA_TIMEOUT) as client:
@@ -116,23 +120,33 @@ class PoolScout:
         try:
             all_pools = await self._fetch_pools()
         except Exception as e:
-            return {"status": "error", "message": f"DefiLlama API error: {e}", "pools": []}
+            return {
+                "status": "error",
+                "message": f"DefiLlama API error: {e}",
+                "pools": [],
+            }
 
         # Filter to V3 only
         pools = self._filter_v3(all_pools)
 
         # Filter by token pair
         if token_pair:
-            tokens = [t.strip().upper() for t in token_pair.replace("/", "-").replace(" ", "-").split("-")]
+            tokens = [
+                t.strip().upper()
+                for t in token_pair.replace("/", "-").replace(" ", "-").split("-")
+            ]
             pools = [
-                p for p in pools
+                p
+                for p in pools
                 if all(t in p.get("symbol", "").upper() for t in tokens)
             ]
 
         # Filter by network
         if network:
             chain_name = NETWORK_TO_CHAIN.get(network.lower(), network.title())
-            pools = [p for p in pools if p.get("chain", "").lower() == chain_name.lower()]
+            pools = [
+                p for p in pools if p.get("chain", "").lower() == chain_name.lower()
+            ]
 
         # Filter by DEX
         if dex:
@@ -147,7 +161,9 @@ class PoolScout:
             "apy": lambda p: p.get("apy") or 0,
             "tvl": lambda p: p.get("tvlUsd") or 0,
             "volume": lambda p: p.get("volumeUsd1d") or 0,
-            "efficiency": lambda p: (p.get("volumeUsd1d") or 0) / max(p.get("tvlUsd") or 1, 1),
+            "efficiency": lambda p: (
+                (p.get("volumeUsd1d") or 0) / max(p.get("tvlUsd") or 1, 1)
+            ),
         }
         sort_fn = sort_keys.get(sort_by, sort_keys["apy"])
         pools.sort(key=sort_fn, reverse=True)
@@ -161,26 +177,28 @@ class PoolScout:
             apy = p.get("apy") or 0
             tvl = p.get("tvlUsd") or 0
             vol = p.get("volumeUsd1d") or 0
-            formatted.append({
-                "symbol": p.get("symbol", "?"),
-                "dex": p.get("project", "?"),
-                "dex_display": _dex_display(p.get("project", "")),
-                "chain": p.get("chain", "?"),
-                "fee_tier": p.get("poolMeta") or "?",
-                "apy": round(apy, 2),
-                "apy_base": round(p.get("apyBase") or 0, 2),
-                "apy_reward": round(p.get("apyReward") or 0, 2),
-                "tvl_usd": round(tvl, 0),
-                "volume_1d_usd": round(vol, 0),
-                "vol_tvl_ratio": round(vol / max(tvl, 1), 4),
-                "il_risk": p.get("ilRisk", "?"),
-                "stablecoin": p.get("stablecoin", False),
-                "apy_1d_change": round(p.get("apyPct1D") or 0, 2),
-                "apy_7d_change": round(p.get("apyPct7D") or 0, 2),
-                "apy_30d_change": round(p.get("apyPct30D") or 0, 2),
-                "apy_mean_30d": round(p.get("apyMean30d") or 0, 2),
-                "pool_id": p.get("pool", ""),
-            })
+            formatted.append(
+                {
+                    "symbol": p.get("symbol", "?"),
+                    "dex": p.get("project", "?"),
+                    "dex_display": _dex_display(p.get("project", "")),
+                    "chain": p.get("chain", "?"),
+                    "fee_tier": p.get("poolMeta") or "?",
+                    "apy": round(apy, 2),
+                    "apy_base": round(p.get("apyBase") or 0, 2),
+                    "apy_reward": round(p.get("apyReward") or 0, 2),
+                    "tvl_usd": round(tvl, 0),
+                    "volume_1d_usd": round(vol, 0),
+                    "vol_tvl_ratio": round(vol / max(tvl, 1), 4),
+                    "il_risk": p.get("ilRisk", "?"),
+                    "stablecoin": p.get("stablecoin", False),
+                    "apy_1d_change": round(p.get("apyPct1D") or 0, 2),
+                    "apy_7d_change": round(p.get("apyPct7D") or 0, 2),
+                    "apy_30d_change": round(p.get("apyPct30D") or 0, 2),
+                    "apy_mean_30d": round(p.get("apyMean30d") or 0, 2),
+                    "pool_id": p.get("pool", ""),
+                }
+            )
 
         return {
             "status": "success",
@@ -200,6 +218,7 @@ class PoolScout:
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
+
 
 def _dex_display(project_id: str) -> str:
     """Friendly display name for a DefiLlama project ID."""
@@ -252,14 +271,16 @@ def format_scout_results(result: Dict) -> str:
         apy = f"{p['apy']:8.1f}"
         tvl = f"${p['tvl_usd']:>13,.0f}"
         il = p["il_risk"][:4] if isinstance(p["il_risk"], str) else "?"
-        apy30 = f"{p['apy_mean_30d']:8.1f}" if p['apy_mean_30d'] else "     N/A"
+        apy30 = f"{p['apy_mean_30d']:8.1f}" if p["apy_mean_30d"] else "     N/A"
         vol = f"${p['volume_1d_usd']:>13,.0f}"
         vt = f"{p['vol_tvl_ratio']:.2f}"
-        lines.append(f"  {i:>2} {dex:20s} {chain:10s} {fee:6s} {apy:>8s} {apy30:>8s} {tvl:>14s} {vol:>14s} {vt:>6s} {il:>4s}")
+        lines.append(
+            f"  {i:>2} {dex:20s} {chain:10s} {fee:6s} {apy:>8s} {apy30:>8s} {tvl:>14s} {vol:>14s} {vt:>6s} {il:>4s}"
+        )
 
     lines.append(f"\n{'=' * 95}")
-    lines.append(f"  ⚠️  APY is a snapshot — check 30d average for stability")
-    lines.append(f"  ⚠️  NOT financial advice — always verify before repositioning")
+    lines.append("  ⚠️  APY is a snapshot — check 30d average for stability")
+    lines.append("  ⚠️  NOT financial advice — always verify before repositioning")
     lines.append(f"{'=' * 95}")
 
     return "\n".join(lines)

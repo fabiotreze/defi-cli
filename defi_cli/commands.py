@@ -15,7 +15,6 @@ from __future__ import annotations
 import asyncio
 import re
 from datetime import datetime
-from typing import Dict, Any
 
 try:
     from defi_cli.central_config import PROJECT_VERSION, PROJECT_NAME
@@ -30,10 +29,13 @@ try:
     )
 except ImportError:
     CLI_DISCLAIMER = "⚠️ WARNING: Educational tool — NOT financial advice"
-    get_jurisdiction_specific_warning = lambda x: "🚨 High risk — do your own research"
+
+    def get_jurisdiction_specific_warning(x):
+        return "🚨 High risk — do your own research"
 
 
 # ── Consent Helpers ──────────────────────────────────────────────────────
+
 
 def _require_consent() -> bool:
     """Explicit consent gate — user must type 'I agree' before report generation."""
@@ -63,7 +65,7 @@ def _require_consent() -> bool:
         if accepted:
             print("  ✅ Consent recorded.\n")
         else:
-            print('  ❌ You must type exactly: I agree')
+            print("  ❌ You must type exactly: I agree")
         return accepted
     except (KeyboardInterrupt, EOFError):
         print("\n  ❌ Cancelled.")
@@ -99,6 +101,7 @@ def _simple_disclaimer() -> bool:
 
 # ── Commands ─────────────────────────────────────────────────────────────
 
+
 def cmd_info() -> None:
     """Display system and architecture information."""
     print(f"\n📊 {PROJECT_NAME} v{PROJECT_VERSION}")
@@ -120,6 +123,7 @@ def cmd_info() -> None:
 
     try:
         from defi_cli.dex_registry import DEX_REGISTRY
+
         for slug, dex in DEX_REGISTRY.items():
             if dex["compatible"]:
                 nets = ", ".join(dex["networks"].keys())
@@ -154,14 +158,23 @@ def cmd_info() -> None:
     print("⭐ Like this tool? Star us on GitHub: github.com/fabiotreze/defi-cli")
 
 
-async def cmd_scout(pair: str, network: str | None = None, dex: str | None = None,
-                    sort: str = "apy", limit: int = 15, min_tvl: float = 50000) -> None:
+async def cmd_scout(
+    pair: str,
+    network: str | None = None,
+    dex: str | None = None,
+    sort: str = "apy",
+    limit: int = 15,
+    min_tvl: float = 50000,
+) -> None:
     """Search for the best V3 pools across DEXes via DefiLlama Yields API."""
     from pool_scout import PoolScout, format_scout_results
 
-    print(f"\n🔭 Searching for {pair} V3 pools" +
-          (f" on {network.title()}" if network else "") +
-          (f" ({dex})" if dex else "") + "...")
+    print(
+        f"\n🔭 Searching for {pair} V3 pools"
+        + (f" on {network.title()}" if network else "")
+        + (f" ({dex})" if dex else "")
+        + "..."
+    )
 
     scout = PoolScout()
     result = await scout.search_pools(
@@ -196,8 +209,8 @@ async def cmd_pool(pool: str) -> None:
         print(f"  🌐 Network  : {d['network'].title()}")
         print(f"  🔄 Txns 24h : {d['txns24h']['total']}")
         # Vol/TVL ratio
-        vol = d.get('volume24h', 0)
-        tvl = d.get('totalValueLockedUSD', 0)
+        vol = d.get("volume24h", 0)
+        tvl = d.get("totalValueLockedUSD", 0)
         if tvl > 0:
             vt = vol / tvl
             print(f"  ⚡ Vol/TVL  : {vt:.2f}x")
@@ -211,7 +224,9 @@ async def cmd_pool(pool: str) -> None:
     print("\n🔗 Data: https://dexscreener.com")
 
 
-async def cmd_list(wallet: str, network: str = "arbitrum", dex: str | None = None) -> None:
+async def cmd_list(
+    wallet: str, network: str = "arbitrum", dex: str | None = None
+) -> None:
     """List all V3-compatible positions for a wallet (scans all DEXes)."""
     from position_indexer import PositionIndexer
 
@@ -235,7 +250,9 @@ async def cmd_list(wallet: str, network: str = "arbitrum", dex: str | None = Non
 
     if not positions:
         print("  No V3 positions found on this network.")
-        print(f"\n  💡 Try another network: --network ethereum|polygon|base|optimism|bsc")
+        print(
+            "\n  💡 Try another network: --network ethereum|polygon|base|optimism|bsc"
+        )
         return
 
     # Group by DEX for structured output
@@ -246,6 +263,7 @@ async def cmd_list(wallet: str, network: str = "arbitrum", dex: str | None = Non
             icon = p.get("dex_slug", "")
             try:
                 from defi_cli.dex_registry import get_dex_icon
+
                 icon = get_dex_icon(p.get("dex_slug", ""))
             except ImportError:
                 icon = "🔄"
@@ -261,19 +279,28 @@ async def cmd_list(wallet: str, network: str = "arbitrum", dex: str | None = Non
     active = sum(1 for p in positions if p["is_active"])
     dex_count = len(set(p.get("dex_name", "") for p in positions))
     print(f"\n{'=' * 65}")
-    print(f"  Total: {len(positions)} positions ({active} active) across {dex_count} DEX(es)")
+    print(
+        f"  Total: {len(positions)} positions ({active} active) across {dex_count} DEX(es)"
+    )
     print(f"{'=' * 65}")
 
     # Show usage hints
     if active > 0:
         first_active = next(p for p in positions if p["is_active"])
-        dex_hint = f" --dex {first_active.get('dex_slug', 'uniswap_v3')}" if first_active.get('dex_slug') != 'uniswap_v3' else ""
-        print(f"\n  💡 Generate a report for any position:")
-        print(f"     python run.py report --position {first_active['token_id']} --network {network}{dex_hint}")
+        dex_hint = (
+            f" --dex {first_active.get('dex_slug', 'uniswap_v3')}"
+            if first_active.get("dex_slug") != "uniswap_v3"
+            else ""
+        )
+        print("\n  💡 Generate a report for any position:")
+        print(
+            f"     python run.py report --position {first_active['token_id']} --network {network}{dex_hint}"
+        )
 
 
-async def _detect_position_network(position_id: int, dex_slug: str,
-                                   networks: list[str]) -> str | None:
+async def _detect_position_network(
+    position_id: int, dex_slug: str, networks: list[str]
+) -> str | None:
     """Try all networks in parallel to find which one holds a position NFT.
 
     Sends a lightweight positions() call to each network's NonfungiblePositionManager.
@@ -301,9 +328,13 @@ async def _detect_position_network(position_id: int, dex_slug: str,
     return None
 
 
-def cmd_report(pool: str | None = None, position_id: int | None = None,
-               wallet: str | None = None, network: str | None = None,
-               dex: str | None = None) -> None:
+def cmd_report(
+    pool: str | None = None,
+    position_id: int | None = None,
+    wallet: str | None = None,
+    network: str | None = None,
+    dex: str | None = None,
+) -> None:
     """Generate an HTML report — with real position data when --position is given."""
     if not _require_consent():
         print("  ❌ Report generation requires explicit consent.")
@@ -320,20 +351,25 @@ def cmd_report(pool: str | None = None, position_id: int | None = None,
     if position_id:
         try:
             from position_reader import PositionReader, RPC_URLS
+
             dex_slug = dex or "uniswap_v3"
 
             # ── Auto-detect network if not specified ──────────────
             if not network:
                 print(f"🔍 Scanning all networks for position #{position_id}…")
-                detected = asyncio.run(_detect_position_network(
-                    position_id, dex_slug, list(RPC_URLS.keys())
-                ))
+                detected = asyncio.run(
+                    _detect_position_network(
+                        position_id, dex_slug, list(RPC_URLS.keys())
+                    )
+                )
                 if detected:
                     network = detected
                     print(f"  ✅ Found on {network}!")
                 else:
                     print(f"  ❌ Position #{position_id} not found on any network.")
-                    print(f"  💡 Try specifying: --network arbitrum|ethereum|polygon|base|optimism|bsc")
+                    print(
+                        "  💡 Try specifying: --network arbitrum|ethereum|polygon|base|optimism|bsc"
+                    )
                     return
 
             net = network
@@ -344,26 +380,32 @@ def cmd_report(pool: str | None = None, position_id: int | None = None,
 
             # Use the auto-detected pool address for DEXScreener lookup
             resolved_pool = onchain.get("pool_address", pool)
-            print(f"  ✅ Real position: ${onchain['total_value_usd']:,.2f} | "
-                  f"Fees: ${onchain['total_fees_usd']:,.2f}")
+            print(
+                f"  ✅ Real position: ${onchain['total_value_usd']:,.2f} | "
+                f"Fees: ${onchain['total_fees_usd']:,.2f}"
+            )
 
             # Fetch DEXScreener data using resolved pool address
-            print(f"⏳ Fetching market data from DEXScreener…")
+            print("⏳ Fetching market data from DEXScreener…")
             result = asyncio.run(analyze_pool_real(resolved_pool))
             if result["status"] == "success":
                 pool_data = result["data"]
             else:
-                print(f"  ⚠️  DEXScreener lookup failed, using on-chain data only")
+                print("  ⚠️  DEXScreener lookup failed, using on-chain data only")
                 pool_data = {
-                    "volume24h": 0, "totalValueLockedUSD": 0,
-                    "network": net, "dex": "uniswap",
+                    "volume24h": 0,
+                    "totalValueLockedUSD": 0,
+                    "network": net,
+                    "dex": "uniswap",
                 }
 
             pos = PositionData.from_onchain_data(onchain, pool_data)
         except Exception as e:
             print(f"  ⚠️  On-chain read failed ({e})")
             if not pool:
-                print("  💡 Provide pool address: python run.py report --pool <0x…> --position <tokenId>")
+                print(
+                    "  💡 Provide pool address: python run.py report --pool <0x…> --position <tokenId>"
+                )
                 return
             print("  ↩️  Falling back to simulated data…")
             onchain = None
@@ -399,10 +441,10 @@ def cmd_report(pool: str | None = None, position_id: int | None = None,
 
     path = generate_position_report(analysis)
 
-    print(f"\n✅ Report opened in your browser!")
+    print("\n✅ Report opened in your browser!")
     print(f"   📄 Temporary file: {path}")
-    print(f"   ⚠️  Contains financial data — not saved automatically.")
-    print(f"   💾 To keep a copy, press Ctrl+S (⌘+S) in your browser.")
+    print("   ⚠️  Contains financial data — not saved automatically.")
+    print("   💾 To keep a copy, press Ctrl+S (⌘+S) in your browser.")
 
 
 async def cmd_check() -> bool:
@@ -413,20 +455,36 @@ async def cmd_check() -> bool:
     from defi_cli.dexscreener_client import analyze_pool_real
 
     POOLS = [
-        {"addr": "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
-         "net": "ethereum", "pair": "USDC/WETH", "desc": "ETH: USDC/WETH 0.05%"},
-        {"addr": "0x2f5e87C9312fa29aed5c179E456625D79015299c",
-         "net": "arbitrum", "pair": "WBTC/WETH", "desc": "ARB: WBTC/WETH 0.05%"},
-        {"addr": "0xD36ec33c8bed5a9F7B6630855f1533455b98a418",
-         "net": "polygon", "pair": "USDC/USDC", "desc": "POLY: USDC.e/USDC 0.01%"},
-        {"addr": "0xd0b53D9277642d899DF5C87A3966A349A798F224",
-         "net": "base", "pair": "WETH/USDC", "desc": "BASE: WETH/USDC 0.05%"},
+        {
+            "addr": "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
+            "net": "ethereum",
+            "pair": "USDC/WETH",
+            "desc": "ETH: USDC/WETH 0.05%",
+        },
+        {
+            "addr": "0x2f5e87C9312fa29aed5c179E456625D79015299c",
+            "net": "arbitrum",
+            "pair": "WBTC/WETH",
+            "desc": "ARB: WBTC/WETH 0.05%",
+        },
+        {
+            "addr": "0xD36ec33c8bed5a9F7B6630855f1533455b98a418",
+            "net": "polygon",
+            "pair": "USDC/USDC",
+            "desc": "POLY: USDC.e/USDC 0.01%",
+        },
+        {
+            "addr": "0xd0b53D9277642d899DF5C87A3966A349A798F224",
+            "net": "base",
+            "pair": "WETH/USDC",
+            "desc": "BASE: WETH/USDC 0.05%",
+        },
     ]
 
     print(f"\n🧪 DeFi CLI v{PROJECT_VERSION} — Integration Check")
     print("=" * 55)
     print(f"   Pools: {len(POOLS)} | Networks: ETH, ARB, POLY, BASE")
-    print(f"   API: DEXScreener (real-time) + DefiLlama (yields)")
+    print("   API: DEXScreener (real-time) + DefiLlama (yields)")
     print(f"   Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 55)
 
@@ -442,19 +500,25 @@ async def cmd_check() -> bool:
             continue
 
         if result["status"] != "success":
-            print(f"    ❌ Not found")
+            print("    ❌ Not found")
             total_fail += 1
             continue
 
         d = result["data"]
         checks = [
-            ("Network",   d["network"] == pool["net"]),
-            ("Tokens",    len(set(d["name"].upper().split("/")) &
-                              set(pool["pair"].upper().split("/"))) >= 1),
-            ("TVL > 0",   d.get("totalValueLockedUSD", 0) > 0),
+            ("Network", d["network"] == pool["net"]),
+            (
+                "Tokens",
+                len(
+                    set(d["name"].upper().split("/"))
+                    & set(pool["pair"].upper().split("/"))
+                )
+                >= 1,
+            ),
+            ("TVL > 0", d.get("totalValueLockedUSD", 0) > 0),
             ("Price > 0", d.get("priceUsd", 0) > 0),
-            ("DEX",       "uniswap" in d.get("dex", "").lower()),
-            ("URL",       d.get("url", "").startswith("https://")),
+            ("DEX", "uniswap" in d.get("dex", "").lower()),
+            ("URL", d.get("url", "").startswith("https://")),
         ]
 
         for name, ok in checks:
@@ -468,22 +532,35 @@ async def cmd_check() -> bool:
         await asyncio.sleep(0.3)  # respect rate limits
 
     # Math engine check
-    print(f"\n  ▸ Math engine")
+    print("\n  ▸ Math engine")
     try:
         from real_defi_math import PositionData, analyze_position
-        pos = PositionData.from_pool_data({
-            "priceUsd": 2000, "totalValueLockedUSD": 1e7,
-            "volume24h": 5e6, "estimatedAPY": 15,
-            "baseToken": {"symbol": "WETH"}, "quoteToken": {"symbol": "USDC"},
-            "address": "0x" + "0" * 40, "network": "ethereum", "dex": "uniswap",
-        })
+
+        pos = PositionData.from_pool_data(
+            {
+                "priceUsd": 2000,
+                "totalValueLockedUSD": 1e7,
+                "volume24h": 5e6,
+                "estimatedAPY": 15,
+                "baseToken": {"symbol": "WETH"},
+                "quoteToken": {"symbol": "USDC"},
+                "address": "0x" + "0" * 40,
+                "network": "ethereum",
+                "dex": "uniswap",
+            }
+        )
         a = analyze_position(pos)
         print(f"    ✅ analyze_position() → {len(a)} fields")
         total_ok += 1
 
         # Validate new IL / range / HODL metrics
-        new_keys = ["range_width_pct", "il_at_lower_v3_pct", "il_at_upper_v3_pct",
-                     "vol_tvl_ratio", "hodl_comparison"]
+        new_keys = [
+            "range_width_pct",
+            "il_at_lower_v3_pct",
+            "il_at_upper_v3_pct",
+            "vol_tvl_ratio",
+            "hodl_comparison",
+        ]
         for k in new_keys:
             if k in a:
                 print(f"    ✅ {k}")
@@ -496,16 +573,17 @@ async def cmd_check() -> bool:
         total_fail += 1
 
     # DefiLlama Pool Scout check
-    print(f"\n  ▸ Pool Scout (DefiLlama Yields)")
+    print("\n  ▸ Pool Scout (DefiLlama Yields)")
     try:
         from pool_scout import PoolScout
+
         scout = PoolScout()
         sr = await scout.search_pools(token_pair="WETH/USDC", limit=3, min_tvl=10_000)
         if sr["status"] == "success" and len(sr["pools"]) > 0:
             print(f"    ✅ DefiLlama API → {sr['total_found']} pools")
             total_ok += 1
         else:
-            print(f"    ⚠️  DefiLlama returned 0 pools (API may be slow)")
+            print("    ⚠️  DefiLlama returned 0 pools (API may be slow)")
             total_ok += 1  # non-blocking
     except Exception as e:
         print(f"    ⚠️  Scout skipped: {e}")

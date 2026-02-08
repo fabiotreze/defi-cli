@@ -17,10 +17,7 @@ All tests are offline — no network calls. Mock-based where needed.
 """
 
 import asyncio
-import math
 import re
-from datetime import datetime
-from pathlib import Path
 from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
@@ -31,7 +28,6 @@ import pytest
 
 from defi_cli.stablecoins import (
     STABLECOIN_SYMBOLS,
-    CORRELATED_GROUPS,
     is_stablecoin,
     is_stablecoin_pair,
     has_stablecoin,
@@ -45,12 +41,30 @@ from defi_cli.stablecoins import (
 class TestStablecoinSymbols:
     """Verify the STABLECOIN_SYMBOLS frozenset contains expected entries."""
 
-    @pytest.mark.parametrize("sym", [
-        "USDC", "USDT", "DAI", "BUSD", "FRAX", "LUSD", "PYUSD", "GHO",
-        "USDC.E", "USDT.E", "USDBC", "AXLUSDC",
-        "EURS", "EURT", "EURC", "GBPT",
-        "MIM", "DOLA", "OUSD",
-    ])
+    @pytest.mark.parametrize(
+        "sym",
+        [
+            "USDC",
+            "USDT",
+            "DAI",
+            "BUSD",
+            "FRAX",
+            "LUSD",
+            "PYUSD",
+            "GHO",
+            "USDC.E",
+            "USDT.E",
+            "USDBC",
+            "AXLUSDC",
+            "EURS",
+            "EURT",
+            "EURC",
+            "GBPT",
+            "MIM",
+            "DOLA",
+            "OUSD",
+        ],
+    )
     def test_known_stablecoins_present(self, sym):
         assert sym in STABLECOIN_SYMBOLS
 
@@ -63,7 +77,9 @@ class TestStablecoinSymbols:
 
 
 class TestIsStablecoin:
-    @pytest.mark.parametrize("sym", ["USDC", "usdc", "  USDT  ", "dai", "USDC.E", "usdt.e"])
+    @pytest.mark.parametrize(
+        "sym", ["USDC", "usdc", "  USDT  ", "dai", "USDC.E", "usdt.e"]
+    )
     def test_case_insensitive_and_strip(self, sym):
         assert is_stablecoin(sym) is True
 
@@ -168,13 +184,25 @@ class TestEstimateFeeTier:
 # ═══════════════════════════════════════════════════════════════════════════
 
 from defi_cli.rpc_helpers import (
-    ABI_WORD_BYTES, ABI_WORD_HEX, ADDRESS_BYTES, ADDRESS_HEX, SIGN_BIT,
-    Q96, Q128, Q256,
-    SYMBOL_MAP,
+    ABI_WORD_BYTES,
+    ABI_WORD_HEX,
+    ADDRESS_BYTES,
+    SIGN_BIT,
+    Q96,
+    Q128,
+    Q256,
     normalize_symbol,
-    encode_uint256, encode_address, encode_uint24, encode_int24,
-    decode_uint, decode_int, decode_address, decode_string,
-    eth_call, eth_call_batch, eth_block_number,
+    encode_uint256,
+    encode_address,
+    encode_uint24,
+    encode_int24,
+    decode_uint,
+    decode_int,
+    decode_address,
+    decode_string,
+    eth_call,
+    eth_call_batch,
+    eth_block_number,
 )
 
 
@@ -189,13 +217,13 @@ class TestRpcConstants:
         assert ADDRESS_BYTES == 20
 
     def test_q96(self):
-        assert Q96 == 2 ** 96
+        assert Q96 == 2**96
 
     def test_q128(self):
-        assert Q128 == 2 ** 128
+        assert Q128 == 2**128
 
     def test_q256(self):
-        assert Q256 == 2 ** 256
+        assert Q256 == 2**256
 
     def test_sign_bit(self):
         assert SIGN_BIT == 1 << 255
@@ -334,9 +362,9 @@ class TestDecodeAddress:
 class TestDecodeString:
     def test_standard_dynamic_string(self):
         # offset = 0x20 (slot 1) → length = 4 → "WETH"
-        offset = encode_uint256(32)           # offset to string data
-        length = encode_uint256(4)            # string length
-        data = "57455448" + "0" * 56          # "WETH" in hex, padded
+        offset = encode_uint256(32)  # offset to string data
+        length = encode_uint256(4)  # string length
+        data = "57455448" + "0" * 56  # "WETH" in hex, padded
         hex_data = offset + length + data
         assert decode_string(hex_data) == "WETH"
 
@@ -422,7 +450,9 @@ class TestEthCallBatchMocked:
             MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            results = asyncio.run(eth_call_batch("http://fake", [("0xA", "0xD1"), ("0xB", "0xD2")]))
+            results = asyncio.run(
+                eth_call_batch("http://fake", [("0xA", "0xD1"), ("0xB", "0xD2")])
+            )
             # Sorted by id: id=1 first, then id=2
             assert results[0] == "0" * 63 + "1"
             assert results[1] == "0" * 63 + "2"
@@ -461,7 +491,7 @@ class TestEthBlockNumberMocked:
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
             result = asyncio.run(eth_block_number("http://fake"))
-            assert result == 0x1a2b3c
+            assert result == 0x1A2B3C
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -522,7 +552,7 @@ class TestHtmlSafe:
         assert _safe("<script>") == "&lt;script&gt;"
 
     def test_escapes_quotes(self):
-        assert _safe('he said "hi"') == 'he said &quot;hi&quot;'
+        assert _safe('he said "hi"') == "he said &quot;hi&quot;"
         assert _safe("it's") == "it&#x27;s"
 
     def test_none_returns_fallback(self):
@@ -549,14 +579,17 @@ class TestSafeFilename:
 
 
 class TestExplorer:
-    @pytest.mark.parametrize("net,name", [
-        ("ethereum", "Etherscan"),
-        ("arbitrum", "Arbiscan"),
-        ("polygon", "PolygonScan"),
-        ("base", "BaseScan"),
-        ("optimism", "Optimistic Etherscan"),
-        ("bsc", "BscScan"),
-    ])
+    @pytest.mark.parametrize(
+        "net,name",
+        [
+            ("ethereum", "Etherscan"),
+            ("arbitrum", "Arbiscan"),
+            ("polygon", "PolygonScan"),
+            ("base", "BaseScan"),
+            ("optimism", "Optimistic Etherscan"),
+            ("bsc", "BscScan"),
+        ],
+    )
     def test_known_networks(self, net, name):
         result = _explorer(net)
         assert result["name"] == name
@@ -671,7 +704,6 @@ class TestRenderStrategiesVisual:
 
 from defi_cli.central_config import (
     DexScreenerAPI,
-    DexScreenerConfig,
     PROJECT_VERSION,
     PROJECT_NAME,
     config,
@@ -743,7 +775,11 @@ class TestExtractPoolInfo:
 
     def _make_pair_data(self, **overrides):
         base = {
-            "baseToken": {"symbol": "WETH", "name": "Wrapped Ether", "address": "0xToken0"},
+            "baseToken": {
+                "symbol": "WETH",
+                "name": "Wrapped Ether",
+                "address": "0xToken0",
+            },
             "quoteToken": {"symbol": "USDC", "name": "USD Coin", "address": "0xToken1"},
             "pairAddress": "0xPoolAddr",
             "chainId": "arbitrum",
@@ -898,7 +934,7 @@ class TestPositionReaderTokenAmounts:
         # Current tick between lower and upper → both amounts > 0
         result = reader._compute_token_amounts(
             liquidity=10**18,
-            sqrtPriceX96=Q96,      # price = 1.0
+            sqrtPriceX96=Q96,  # price = 1.0
             current_tick=0,
             tick_lower=-1000,
             tick_upper=1000,
@@ -941,7 +977,12 @@ class TestPositionReaderTokenAmounts:
 # 8. commands.py (consent helpers — need input mocking)
 # ═══════════════════════════════════════════════════════════════════════════
 
-from defi_cli.commands import _require_consent, _prompt_address, _simple_disclaimer, cmd_info
+from defi_cli.commands import (
+    _require_consent,
+    _prompt_address,
+    _simple_disclaimer,
+    cmd_info,
+)
 
 
 class TestRequireConsent:
@@ -1030,9 +1071,17 @@ class TestCreateParser:
         parser = create_parser()
         assert parser is not None
 
-    @pytest.mark.parametrize("cmd", [
-        "info", "scout", "pool", "list", "report", "check",
-    ])
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "info",
+            "scout",
+            "pool",
+            "list",
+            "report",
+            "check",
+        ],
+    )
     def test_all_subcommands_exist(self, cmd):
         parser = create_parser()
         # Each subcommand should parse without error
@@ -1121,8 +1170,8 @@ class TestGeneratePositionReport:
             "lower_price": 2000,
             "upper_price": 3000,
             "range_proximity": 0.5,
-            "liquidity": 10 ** 18,
-            "pool_liquidity": 10 ** 20,
+            "liquidity": 10**18,
+            "pool_liquidity": 10**20,
             "liquidity_share_pct": 1.0,
             "amount0": 2.0,
             "amount1": 5000.0,
@@ -1139,28 +1188,46 @@ class TestGeneratePositionReport:
             "wallet_address": "0x" + "b" * 40,
             "strategies": {
                 "conservative": {
-                    "lower_price": 1500, "upper_price": 3500,
-                    "apr_estimate": 0.05, "risk_level": "Low",
-                    "description": "Wide range", "range_width_pct": 50,
-                    "total_value_usd": 10000, "capital_efficiency": 2.0,
-                    "daily_fees_est": 3, "weekly_fees_est": 21,
-                    "monthly_fees_est": 90, "annual_fees_est": 1095,
+                    "lower_price": 1500,
+                    "upper_price": 3500,
+                    "apr_estimate": 0.05,
+                    "risk_level": "Low",
+                    "description": "Wide range",
+                    "range_width_pct": 50,
+                    "total_value_usd": 10000,
+                    "capital_efficiency": 2.0,
+                    "daily_fees_est": 3,
+                    "weekly_fees_est": 21,
+                    "monthly_fees_est": 90,
+                    "annual_fees_est": 1095,
                 },
                 "moderate": {
-                    "lower_price": 2000, "upper_price": 3000,
-                    "apr_estimate": 0.12, "risk_level": "Medium",
-                    "description": "Standard range", "range_width_pct": 20,
-                    "total_value_usd": 10000, "capital_efficiency": 4.0,
-                    "daily_fees_est": 5, "weekly_fees_est": 35,
-                    "monthly_fees_est": 150, "annual_fees_est": 1825,
+                    "lower_price": 2000,
+                    "upper_price": 3000,
+                    "apr_estimate": 0.12,
+                    "risk_level": "Medium",
+                    "description": "Standard range",
+                    "range_width_pct": 20,
+                    "total_value_usd": 10000,
+                    "capital_efficiency": 4.0,
+                    "daily_fees_est": 5,
+                    "weekly_fees_est": 35,
+                    "monthly_fees_est": 150,
+                    "annual_fees_est": 1825,
                 },
                 "aggressive": {
-                    "lower_price": 2200, "upper_price": 2800,
-                    "apr_estimate": 0.25, "risk_level": "High",
-                    "description": "Tight range", "range_width_pct": 12,
-                    "total_value_usd": 10000, "capital_efficiency": 8.0,
-                    "daily_fees_est": 10, "weekly_fees_est": 70,
-                    "monthly_fees_est": 300, "annual_fees_est": 3650,
+                    "lower_price": 2200,
+                    "upper_price": 2800,
+                    "apr_estimate": 0.25,
+                    "risk_level": "High",
+                    "description": "Tight range",
+                    "range_width_pct": 12,
+                    "total_value_usd": 10000,
+                    "capital_efficiency": 8.0,
+                    "daily_fees_est": 10,
+                    "weekly_fees_est": 70,
+                    "monthly_fees_est": 300,
+                    "annual_fees_est": 3650,
                 },
             },
             "current_strategy": "moderate",
@@ -1197,6 +1264,6 @@ class TestGeneratePositionReport:
         path = generate_position_report(data, _open_browser=False)
         content = path.read_text()
         # The XSS payload must be escaped in the HTML output
-        assert '&lt;script&gt;alert' in content
+        assert "&lt;script&gt;alert" in content
         # The escaped version appears where the token symbol is shown
-        assert '&lt;script&gt;' in content
+        assert "&lt;script&gt;" in content
