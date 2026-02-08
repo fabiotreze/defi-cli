@@ -6,10 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [1.1.1] — 2026-02-07
+## [1.1.1] — 2026-02-08
 
 ### Added
-- **24 automated codereview checks** (T01–T24) — expanded from 20
+- **CI/CD pipeline** (`.github/workflows/ci.yml`) — 3-job GitHub Actions workflow:
+  - Lint & Security: ruff check + format, secrets scan, dangerous functions scan, HTTPS-only validation
+  - Test Matrix: Python 3.10 / 3.11 / 3.12 with full offline test suite
+  - Codereview Report: T06–T30 validation uploaded as 30-day artifact
+  - T30 compliant: pinned SHA actions, least-privilege permissions, concurrency control
+- **CI badge** + **Security badge** (T09|T23|T25) added to README
+- **CI/CD Security section** added to SECURITY.md
+- **30 automated codereview checks** (T01–T30) — expanded from 24
   - T21: Requirements validation (dependencies importable, version constraints)
   - T22: Modularity check (no circular imports, proper package isolation)
   - T23: Vulnerability scan (eval/exec/pickle, HTTPS-only, minimal deps)
@@ -25,7 +32,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - **RPC helpers consolidated** — position_reader.py and position_indexer.py now import from shared `rpc_helpers.py` (was ~200 lines duplicated)
 - **Screenshots updated** — 7 report screenshots regenerated at 1200px with current Arbitrum position data (WETH/USDT, $768.49)
-- Test count: 292 total (83 unit + 195 integration + 14 codereview)
+- Test count: 297 total (83 math + 194 unit + 20 codereview)
 - SECURITY.md version reference updated to v1.1.1
 - `cmd_info()` version label: "New in v1.1.0" → "New in v1.1.x"
 
@@ -34,7 +41,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - Docstring example in `estimate_fee_tier("WETH","USDC")` returned wrong value (0.003 → 0.0005)
 - Unused import `DEX_REGISTRY` in position_reader.py
 - Unused import `Optional` in html_generator.py
-- Stale `.github/workflows/` directory removed (user manages CI separately)
+- Ruff lint + format enforced: removed unused imports (F401), f-strings without placeholders (F541), unused variables (F841), ambiguous names (E741)
+- `per-file-ignores` configured in `pyproject.toml` for intentional test patterns (E402, E702)
 
 ---
 

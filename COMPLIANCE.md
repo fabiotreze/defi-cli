@@ -334,12 +334,12 @@ Each of the 50 codereview categories in `.codereview.md` maps to a priority leve
 
 | Priority | Automated Tests | Coverage |
 |----------|----------------|----------|
-| P1 Security | T09, T23 | Secrets scan, vuln scan (eval/exec/http), CSP |
-| P2 Privacy | T09, T17, T24 | No PII, RPC connectivity (1RPC.io), no persistence |
+| P1 Security | T09, T23, T30 | Secrets scan, vuln scan (eval/exec/http), CSP, CI/CD security (pinned SHAs, permissions, concurrency) |
+| P2 Privacy | T09, T17, T24, T25, T27 | No PII, RPC connectivity (1RPC.io), no persistence, LGPD compliance, no tracking |
 | P3 Consent | T19, T20 | Disclaimers in output, HTML sections present |
-| P4 Liability | T19, T24 | Disclaimers present, LICENSE file exists |
+| P4 Liability | T19, T24, T26 | Disclaimers present, LICENSE file exists, CVM disclaimer |
 | P5 Accuracy | T05, T11, T12, T13, T14, T15 | 83 formula tests, roundtrip, symmetry, pipeline |
-| P6 Regulatory | T19 | Disclaimer text includes regulatory notices |
+| P6 Regulatory | T19, T26 | Disclaimer text includes regulatory notices, CVM compliance |
 | P7 Versioning | T08, T21, T24 | Version consistency, requirements, file integrity |
 
 ---
@@ -360,6 +360,7 @@ All services are accessed via **HTTPS only**, verified by T23 (no `http://` in c
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | 2026-02-08 | Added T25–T30 (LGPD, CVM, tracking, Azure IaC, Docker, CI/CD). CI pipeline added. |
 | 1.0.0 | 2026-02-07 | Initial P1–P7 compliance framework |
 
 *This document is part of the project's compliance infrastructure and is reviewed during every codereview cycle.*
