@@ -14,11 +14,7 @@ from datetime import datetime
 from typing import Dict, Any
 from defi_cli.html_styles import build_css as _build_css
 
-try:
-    from defi_cli.legal_disclaimers import BTC_DONATION, ETH_DONATION
-except ImportError:
-    BTC_DONATION = "See source code"
-    ETH_DONATION = "See source code"
+
 
 # Constants
 # No persistent output directory — all reports are temporary (privacy by design)
@@ -1224,29 +1220,10 @@ def _build_html(data: Dict) -> str:
                 </div>
             </div>
             
-            <h3>💰 Development Support (Optional):</h3>
+            <h3>⭐ Like this project?</h3>
             <div style="background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
-                <p style="margin-top: 0; font-size: 0.875rem;"><strong>🎯 Voluntary Contributions:</strong> If this educational tool was useful, consider supporting continued development.</p>
-                
-                <div class="metric-grid">
-                    <div class="metric-card" style="background: white;">
-                        <div><strong>Bitcoin (BTC):</strong></div>
-                        <div style="font-family: monospace; font-size: 0.8rem; word-break: break-all;">
-                            {BTC_DONATION}
-                        </div>
-                    </div>
-                    
-                    <div class="metric-card" style="background: white;">
-                        <div><strong>Ethereum/EVM:</strong></div>
-                        <div style="font-family: monospace; font-size: 0.8rem; word-break: break-all;">
-                            {ETH_DONATION}
-                        </div>
-                    </div>
-                </div>
-                
-                <p style="font-size: 0.8rem; color: #78350f; margin-bottom: 0;">
-                    <strong>⚖️ Legal Notice:</strong> Donations are 100% voluntary and do not constitute investment, service purchase, or equity. 
-                    The tool remains free regardless. See full terms in source code.
+                <p style="margin: 0; font-size: 0.875rem;"><strong>🌟 Star us on GitHub:</strong> 
+                    <a href="https://github.com/fabiotreze/defi-cli" target="_blank" style="color: #2563eb;">github.com/fabiotreze/defi-cli</a>
                 </p>
             </div>
         </div>
