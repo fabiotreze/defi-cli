@@ -4,7 +4,6 @@
 <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-≥3.10-3776AB?logo=python&logoColor=white" alt="Python"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.1-blue" alt="Version"></a>
-<a href="#donations"><img src="https://img.shields.io/badge/₿_Donate_Crypto-f7931a?logo=bitcoin&logoColor=white" alt="Donate Crypto"></a>
 </p>
 
 **Educational** multi-DEX V3 concentrated-liquidity analyzer.  
@@ -82,7 +81,7 @@ python run.py scout <PAIR> --network <NETWORK> --dex <DEX> --sort <apy|tvl|volum
 |---------|-------------|
 | `python run.py check` | Integration tests against live pools |
 | `python run.py info` | System info + supported DEXes |
-| `python run.py donate` | Donation addresses |
+| `python run.py donate` | Project info |
 
 ---
 
@@ -256,13 +255,6 @@ See [SECURITY.md](SECURITY.md) · [COMPLIANCE.md](COMPLIANCE.md)
 
 ---
 
-## Donations
+## Support
 
-If this tool was useful, voluntary donations are appreciated but never required:
-
-| Currency | Address |
-|----------|---------|
-| **BTC** | `bc1phnv47d3hq4yv8gdrnhyg502jwd9yvefyy8md5dfpnvgxwxyxl4rsdxn9yd` |
-| **ETH / USDC / USDT / DAI** | `0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4` |
-
-> Donations are gifts, not investments. No returns, equity, or obligations.
+If you find this tool useful, consider giving it a ⭐ on GitHub!
