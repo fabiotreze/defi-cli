@@ -47,10 +47,7 @@ from defi_cli.commands import (
     _simple_disclaimer, _prompt_address,
 )
 
-try:
-    from defi_cli.legal_disclaimers import show_donation_addresses
-except ImportError:
-    show_donation_addresses = lambda: "💝 Donation info unavailable"
+
 
 
 # ── CLI Parser ────────────────────────────────────────────────────────────
@@ -74,6 +71,8 @@ Examples:
   python run.py scout  WETH/USDC --sort efficiency       Sort by Vol/TVL ratio
   python run.py check                                    Integration tests
   python run.py info                                     System overview + DEX support
+
+⭐ Like this tool? Star us on GitHub: github.com/fabiotreze/defi-cli
 
 Supported DEXes (V3-compatible):
   uniswap_v3     🦄 Uniswap V3     — ETH, ARB, POLY, BASE, OP
@@ -123,7 +122,6 @@ Sources:
                           help="DEX: uniswap_v3, pancakeswap_v3, sushiswap_v3 (default: uniswap_v3)")
 
     sub.add_parser("check", help="Run integration validation")
-    sub.add_parser("donate", help="Show donation addresses")
     sub.add_parser("info", help="System & architecture info")
 
     # scout command — cross-DEX pool discovery via DefiLlama
@@ -160,10 +158,7 @@ def main() -> int:
     if args.command == "check":
         ok = asyncio.run(cmd_check())
         return 0 if ok else 1
-    if args.command == "donate":
-        from defi_cli.legal_disclaimers import show_donation_addresses
-        print(show_donation_addresses())
-        return 0
+
     if args.command == "scout":
         asyncio.run(cmd_scout(
             pair=args.pair,

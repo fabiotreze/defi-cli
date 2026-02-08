@@ -1093,6 +1093,194 @@ def _t24_file_integrity(results: CodeReviewResults):
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# T25 — LGPD compliance (data protection BR)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _t25_lgpd_compliance(results: CodeReviewResults):
+    """T25: LGPD: no PII collection, no cookies, privacy by design."""
+    findings = []
+
+    for f in PYTHON_FILES:
+        fpath = PROJECT_ROOT / f
+        if not fpath.exists():
+            continue
+        content = fpath.read_text()
+        # No cookie setting
+        if "set_cookie" in content:
+            findings.append(f"{f}: sets cookies — requires LGPD consent")
+        # No tracking pixels
+        for tracker in ["google-analytics", "gtag(", "fbq(", "hotjar",
+                        "mixpanel", "amplitude"]:
+            if tracker in content.lower():
+                findings.append(f"{f}: third-party tracker ({tracker}) — LGPD consent req")
+
+    # Check disclaimers mention privacy
+    disc_path = PROJECT_ROOT / "defi_cli" / "legal_disclaimers.py"
+    if disc_path.exists():
+        disc = disc_path.read_text().lower()
+        if "privacy" not in disc and "dados" not in disc and "lgpd" not in disc:
+            findings.append("legal_disclaimers.py: no privacy/LGPD mention")
+
+    ok = len(findings) == 0
+    detail = "\n".join(findings) if findings else "No PII, no cookies — LGPD compliant"
+    results.add("T25", "LGPD compliance (data protection BR)", ok, detail, "HIGH")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# T26 — CVM/SEC disclaimer depth
+# ═══════════════════════════════════════════════════════════════════════
+
+def _t26_cvm_disclaimer(results: CodeReviewResults):
+    """T26: CVM/SEC: NOT FINANCIAL ADVICE, no guarantees, user responsibility."""
+    findings = []
+    disc_path = PROJECT_ROOT / "defi_cli" / "legal_disclaimers.py"
+    if disc_path.exists():
+        content = disc_path.read_text().upper()
+        phrases = [
+            ("NOT FINANCIAL ADVICE", "Must state not financial advice"),
+            ("NO GUARANTEE", "Must disclaim guarantees"),
+            ("YOUR RESPONSIBILITY", "User sole responsibility"),
+            ("RISK", "DeFi risk warning"),
+        ]
+        for phrase, desc in phrases:
+            if phrase not in content:
+                findings.append(f"Missing: '{phrase}' — {desc}")
+    else:
+        findings.append("legal_disclaimers.py not found")
+
+    ok = len(findings) == 0
+    detail = "\n".join(findings) if findings else "All CVM/SEC phrases present"
+    results.add("T26", "CVM/SEC disclaimer depth", ok, detail, "HIGH")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# T27 — No third-party tracking
+# ═══════════════════════════════════════════════════════════════════════
+
+def _t27_no_tracking(results: CodeReviewResults):
+    """T27: No LGPD/GDPR-violating trackers (GA, FB, Hotjar, etc.)."""
+    findings = []
+    trackers = ["google-analytics", "gtag(", "fbq(", "hotjar",
+                "mixpanel", "amplitude", "facebook.com/tr"]
+
+    for f in PYTHON_FILES:
+        fpath = PROJECT_ROOT / f
+        if not fpath.exists():
+            continue
+        content = fpath.read_text().lower()
+        for t in trackers:
+            if t in content:
+                findings.append(f"{f}: tracker detected ({t})")
+
+    ok = len(findings) == 0
+    detail = "\n".join(findings) if findings else "No trackers — privacy compliant"
+    results.add("T27", "No third-party tracking (LGPD/GDPR)", ok, detail, "MEDIUM")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# T28 — Azure IaC validation (conditional)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _t28_azure_iac(results: CodeReviewResults):
+    """T28: If terraform/ exists, validate IaC files and secrets config."""
+    tf_dir = PROJECT_ROOT / "terraform"
+    if not tf_dir.exists():
+        results.add("T28", "Azure IaC (conditional)", True,
+                     "No terraform/ — not applicable", "PASS")
+        return
+
+    findings = []
+    for tf in ["providers.tf", "variables.tf", "main.tf", "outputs.tf"]:
+        fp = tf_dir / tf
+        if not fp.exists():
+            findings.append(f"Missing {tf}")
+        elif fp.stat().st_size == 0:
+            findings.append(f"{tf} is empty")
+
+    if (tf_dir / "main.tf").exists():
+        main = (tf_dir / "main.tf").read_text()
+        if "azurerm_key_vault" not in main:
+            findings.append("No Key Vault configured")
+
+    if (tf_dir / "variables.tf").exists():
+        vartf = (tf_dir / "variables.tf").read_text()
+        if "sensitive" not in vartf:
+            findings.append("No sensitive vars — secrets exposed in state")
+
+    ok = len(findings) == 0
+    detail = "\n".join(findings) if findings else "Terraform IaC validated"
+    results.add("T28", "Azure IaC validation (conditional)", ok, detail, "HIGH")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# T29 — Docker security (conditional)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _t29_docker_security(results: CodeReviewResults):
+    """T29: If Dockerfile exists, validate non-root, slim, HEALTHCHECK."""
+    dockerfile = PROJECT_ROOT / "Dockerfile"
+    if not dockerfile.exists():
+        results.add("T29", "Docker security (conditional)", True,
+                     "No Dockerfile — not applicable", "PASS")
+        return
+
+    findings = []
+    src = dockerfile.read_text()
+    if "USER " not in src:
+        findings.append("No non-root USER")
+    if "-slim" not in src and "-alpine" not in src:
+        findings.append("Not using slim/alpine base")
+    if "HEALTHCHECK" not in src:
+        findings.append("No HEALTHCHECK instruction")
+
+    # .dockerignore
+    if not (PROJECT_ROOT / ".dockerignore").exists():
+        findings.append(".dockerignore missing — secrets may leak into image")
+
+    ok = len(findings) == 0
+    detail = "\n".join(findings) if findings else "Docker security validated"
+    results.add("T29", "Docker security (conditional)", ok, detail, "HIGH")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# T30 — CI/CD security (conditional)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _t30_cicd_security(results: CodeReviewResults):
+    """T30: If .github/workflows exists, validate pinned actions, perms, concurrency."""
+    wf_dir = PROJECT_ROOT / ".github" / "workflows"
+    if not wf_dir.exists():
+        results.add("T30", "CI/CD security (conditional)", True,
+                     "No .github/workflows/ — not applicable", "PASS")
+        return
+
+    findings = []
+    for yml in wf_dir.glob("*.yml"):
+        content = yml.read_text()
+        name = yml.name
+
+        # Check pinned SHAs
+        uses = re.findall(r"uses:\s*(\S+)", content)
+        for action in uses:
+            if "@" in action:
+                _, ref = action.split("@", 1)
+                if not re.match(r"^[0-9a-f]{40}$", ref):
+                    findings.append(f"{name}: not pinned — {action}")
+
+        # Check permissions
+        if "permissions:" not in content:
+            findings.append(f"{name}: no permissions block")
+
+        # Check concurrency
+        if "concurrency:" not in content:
+            findings.append(f"{name}: no concurrency control")
+
+    ok = len(findings) == 0
+    detail = "\n".join(findings[:5]) if findings else "CI/CD security validated"
+    results.add("T30", "CI/CD security (conditional)", ok, detail, "HIGH")
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # RUNNER
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -1157,6 +1345,24 @@ def run_all(quick: bool = False):
 
     print("  ⏳ T24: File integrity...")
     _t24_file_integrity(results)
+
+    print("  ⏳ T25: LGPD compliance...")
+    _t25_lgpd_compliance(results)
+
+    print("  ⏳ T26: CVM/SEC disclaimer depth...")
+    _t26_cvm_disclaimer(results)
+
+    print("  ⏳ T27: No third-party tracking...")
+    _t27_no_tracking(results)
+
+    print("  ⏳ T28: Azure IaC (conditional)...")
+    _t28_azure_iac(results)
+
+    print("  ⏳ T29: Docker security (conditional)...")
+    _t29_docker_security(results)
+
+    print("  ⏳ T30: CI/CD security (conditional)...")
+    _t30_cicd_security(results)
 
     # ── Phase 2: Network tests (skip if --quick) ─────────────────────
     if not quick:
@@ -1223,6 +1429,12 @@ def test_cr_t21_requirements(cr): _t21_requirements(cr); assert all(r["passed"] 
 def test_cr_t22_modularity(cr): _t22_modularity(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T22")
 def test_cr_t23_vulnerability(cr): _t23_vulnerability(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T23")
 def test_cr_t24_file_integrity(cr): _t24_file_integrity(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T24")
+def test_cr_t25_lgpd(cr): _t25_lgpd_compliance(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T25")
+def test_cr_t26_cvm(cr): _t26_cvm_disclaimer(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T26")
+def test_cr_t27_tracking(cr): _t27_no_tracking(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T27")
+def test_cr_t28_azure_iac(cr): _t28_azure_iac(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T28")
+def test_cr_t29_docker(cr): _t29_docker_security(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T29")
+def test_cr_t30_cicd(cr): _t30_cicd_security(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T30")
 
 
 # ── CLI entry point ─────────────────────────────────────────────────────

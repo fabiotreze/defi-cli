@@ -20,9 +20,7 @@ This software is provided for EDUCATIONAL and INFORMATIONAL purposes ONLY.
 • Independent professional advice is recommended for financial decisions
 """
 
-# Donation addresses (developer's public crypto wallets)
-BTC_DONATION = "bc1phnv47d3hq4yv8gdrnhyg502jwd9yvefyy8md5dfpnvgxwxyxl4rsdxn9yd"
-ETH_DONATION = "0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4"  # Also accepts USDC, USDT, DAI
+
 
 # Full regulatory compliance text (assigned to a constant — not a dead string literal)
 REGULATORY_COMPLIANCE = """
@@ -117,65 +115,10 @@ BY USING THIS SOFTWARE, YOU ACKNOWLEDGE:
 For questions regarding compliance or legal matters, 
 consult qualified legal and financial professionals in your jurisdiction.
 
-💝 OPTIONAL DEVELOPMENT SUPPORT:
-This is a free, open-source educational tool. If you find it valuable and wish to 
-support continued development, voluntary donations are appreciated but never required.
-
-🪙 CRYPTO DONATIONS (Optional):
-• Bitcoin (BTC): bc1phnv47d3hq4yv8gdrnhyg502jwd9yvefyy8md5dfpnvgxwxyxl4rsdxn9yd
-• Ethereum & ERC-20 (ETH/USDC/USDT/DAI): 0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4
-
-⚠️ COMPREHENSIVE DONATION DISCLAIMER:
-
-🚫 NOT AN INVESTMENT OR SECURITY:
-• Donations do NOT constitute investment, securities, shares, or equity participation
-• NO promise of returns, profits, dividends, or financial benefits  
-• NOT a purchase of software, services, or future products
-• Donations create NO contractual rights, obligations, or warranties
-
-🇧🇷 BRAZIL (CVM/LGPD/RF Compliance):
-• Donations do NOT constitute securities per CVM regulations
-• Donor responsible for declaring crypto transactions to Receita Federal
-• LGPD: No personal data required - donations are anonymous by design
-• Tax obligations per IN RFB 1888/2019 (crypto asset reporting)
-
-🇺🇸 USA (SEC/IRS Compliance):
-• Donations are gifts, NOT securities under Securities Act
-• Donor responsible for IRS reporting per crypto tax guidelines
-• Form 8949 may be required for crypto dispositions
-• No investment advice provided per SEC regulations
-
-🇪🇺 EU (MiCA/Tax Compliance):
-• Donations do NOT constitute crypto-assets investment services
-• Donor responsible for local tax reporting in EU member states
-• GDPR: Anonymous donations - no personal data processing
-• Varies by country - consult local tax advisor
-
-🌍 GLOBAL TAX RESPONSIBILITIES:
-• Donor SOLELY responsible for tax compliance in their jurisdiction
-• Includes crypto asset reporting, capital gains, gift taxes if applicable
-• Developer provides NO tax advice - consult qualified professionals
-• Verify legality of crypto donations in your country
-
-🔒 PRIVACY & DATA PROTECTION:
-• NO personal information collection or storage
-• Anonymous blockchain transactions only
-• No KYC/AML required for voluntary donations
-• LGPD/GDPR compliant by design (no personal data processing)
-
-🚀 OPEN SOURCE FREEDOM:
+⭐ OPEN SOURCE:
 • MIT License: Copy, modify, distribute freely
-• NO obligation to donate to use, modify, or redistribute
 • Community encouraged to fork and improve
-• Attribution appreciated but not required
-
-⚡ DONATION CONDITIONS:
-• 100% voluntary - tool remains free regardless
-• NO guarantee of updates, features, or support
-• NO refunds possible (irreversible crypto transactions)
-• Developer may discontinue project at any time
-• Donations support development but create no obligations
-• Always verify addresses before sending (typos are permanent losses)
+• Star us on GitHub: github.com/fabiotreze/defi-cli
 
 Last Updated: 2026-02-06
 Version: 1.1.1
@@ -192,9 +135,6 @@ CLI_DISCLAIMER = """
 ⚡ USE AT YOUR OWN RISK - DEVELOPER NOT LIABLE FOR LOSSES
 ⚖️ CHECK LOCAL LAWS - Crypto may be prohibited in your jurisdiction
 💰 FINANCIAL DISCLAIMER - Developer WAIVES ALL LIABILITY for financial losses
-
-💝 SUPPORT DEVELOPMENT (Optional): If you find this tool valuable,
-   voluntary crypto donations help continue development (see addresses below)
 
 By continuing, you ACCEPT total responsibility for your financial decisions.
 """
@@ -230,64 +170,3 @@ DEVELOPER NOT RESPONSIBLE for any financial losses or damages.
     return warnings.get(jurisdiction, warnings["GLOBAL"])
 
 
-def show_donation_addresses() -> str:
-    """Returns comprehensive donation information with legal compliance."""
-    
-    donation_info = f"""
-💝 SUPPORT OPEN-SOURCE DEVELOPMENT
-======================================
-
-This educational DeFi tool is free and open-source. If you find it valuable,
-voluntary crypto donations help support continued development and maintenance.
-
-🪙 VERIFIED DONATION ADDRESSES:
-
-₿  Bitcoin (BTC):
-   {BTC_DONATION}
-   
-🔷 Ethereum & ERC-20 Tokens:
-   {ETH_DONATION}
-   
-   📝 Supported tokens on this address:
-   • ETH (Ethereum)
-   • USDC (USD Coin)
-   • USDT (Tether)
-   • DAI (Dai Stablecoin)
-
-🚨 CRITICAL LEGAL NOTICE — DONATIONS:
-
-🚫 NOT AN INVESTMENT:
-• Donations do NOT constitute investment, equity participation, or securities
-• NO promise of returns, profits, or financial benefits
-• NOT a purchase of software or future services
-
-🇧🇷 BRAZIL — Tax Compliance:
-• Donor responsible for reporting to Receita Federal (IN RFB 1888/2019)
-• Does NOT constitute securities per CVM regulations
-• LGPD: Anonymous donations — no personal data collected
-
-🌍 INTERNATIONAL Tax Compliance:
-• Donor responsible for tax obligations in their jurisdiction  
-• May require crypto asset reporting to local authorities
-• Consult qualified tax professional in your country
-
-⚠️  IMPORTANT SAFETY & LEGAL:
-• ALWAYS verify addresses by copying/pasting (never type manually)
-• Start with small test transaction first  
-• Donations are voluntary - NO features tied to donations
-• Educational tool remains free regardless of donations
-• NO refunds possible for crypto transactions
-• NO guarantee of updates, support, or new features
-• Developer may discontinue project at any time
-
-🔓 OPEN SOURCE RIGHTS:
-• MIT License: Feel free to copy, modify, and share
-• NO obligation to donate to use or redistribute
-• Community encouraged to fork and improve
-
-🙏 THANK YOU for supporting open-source DeFi education!
-
-🔗 Verify these addresses at: github.com/fabiotreze/defi-cli
-"""
-    
-    return donation_info

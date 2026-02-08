@@ -75,13 +75,12 @@ python run.py pool --pool <POOL_ADDRESS>
 python run.py scout <PAIR> --network <NETWORK> --dex <DEX> --sort <apy|tvl|volume|efficiency>
 ```
 
-### `check` · `info` · `donate`
+### `check` · `info`
 
 | Command | Description |
 |---------|-------------|
 | `python run.py check` | Integration tests against live pools |
 | `python run.py info` | System info + supported DEXes |
-| `python run.py donate` | Project info |
 
 ---
 

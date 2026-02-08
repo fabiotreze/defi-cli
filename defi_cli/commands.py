@@ -151,7 +151,7 @@ def cmd_info() -> None:
     print("   Uniswap V3 Docs       : https://docs.uniswap.org/")
     print("   DEXScreener API       : https://docs.dexscreener.com/api/reference")
     print()
-    print("💝 Support: Donation addresses in disclaimers")
+    print("⭐ Like this tool? Star us on GitHub: github.com/fabiotreze/defi-cli")
 
 
 async def cmd_scout(pair: str, network: str | None = None, dex: str | None = None,
