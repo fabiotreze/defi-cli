@@ -1,9 +1,11 @@
 # DeFi CLI
 
 <p>
+<a href="https://github.com/fabiotreze/defi-cli/actions/workflows/ci.yml"><img src="https://github.com/fabiotreze/defi-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-≥3.10-3776AB?logo=python&logoColor=white" alt="Python"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.1-blue" alt="Version"></a>
+<a href="SECURITY.md"><img src="https://img.shields.io/badge/security-T09%20%7C%20T23%20%7C%20T25-blueviolet" alt="Security"></a>
 </p>
 
 **Educational** multi-DEX V3 concentrated-liquidity analyzer.  
