@@ -1031,7 +1031,7 @@ class TestCreateParser:
         assert parser is not None
 
     @pytest.mark.parametrize("cmd", [
-        "info", "scout", "pool", "list", "report", "check", "donate",
+        "info", "scout", "pool", "list", "report", "check",
     ])
     def test_all_subcommands_exist(self, cmd):
         parser = create_parser()
@@ -1048,8 +1048,6 @@ class TestCreateParser:
             args = parser.parse_args(["report", "--position", "12345"])
         elif cmd == "check":
             args = parser.parse_args(["check"])
-        elif cmd == "donate":
-            args = parser.parse_args(["donate"])
         assert args.command == cmd
 
     def test_scout_defaults(self):

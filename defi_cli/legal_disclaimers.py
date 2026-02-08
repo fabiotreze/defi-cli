@@ -114,6 +114,7 @@ BY USING THIS SOFTWARE, YOU ACKNOWLEDGE:
 
 For questions regarding compliance or legal matters, 
 consult qualified legal and financial professionals in your jurisdiction.
+ALL decisions are YOUR RESPONSIBILITY — use at your own risk.
 
 ⭐ OPEN SOURCE:
 • MIT License: Copy, modify, distribute freely
