@@ -16,6 +16,12 @@ Contract Address Sources:
   Uniswap V3  : https://docs.uniswap.org/contracts/v3/reference/deployments/
   PancakeSwap : https://developer.pancakeswap.finance/contracts/v3/addresses
   SushiSwap   : https://docs.sushi.com/docs/Products/V3%20AMM/Periphery/Deployment%20Addresses
+
+SDK & Protocol Documentation:
+  Uniswap V3 SDK     : https://docs.uniswap.org/sdk/v3/overview
+  Uniswap V3 Core    : https://github.com/Uniswap/v3-core
+  PancakeSwap V3 SDK : https://developer.pancakeswap.finance/contracts/v3/overview
+  SushiSwap V3 Core  : https://docs.sushi.com/docs/Products/V3%20AMM/Core/Overview
 """
 
 from typing import Dict, List, Optional

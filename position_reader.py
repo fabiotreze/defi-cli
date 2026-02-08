@@ -28,6 +28,15 @@ Data Sources (per RPC call):
 
 5. ERC-20.decimals(), ERC-20.symbol()
    Token metadata for human-readable formatting.
+   Ref: https://eips.ethereum.org/EIPS/eip-20
+
+Protocol References:
+─────────────────────
+  Ethereum JSON-RPC  : https://ethereum.org/en/developers/docs/apis/json-rpc/
+  Solidity ABI Spec  : https://docs.soliditylang.org/en/latest/abi-spec.html
+  ERC-721 (Positions) : https://eips.ethereum.org/EIPS/eip-721
+  Uniswap V3 SDK     : https://docs.uniswap.org/sdk/v3/overview
+  Uniswap V3 Core    : https://github.com/Uniswap/v3-core
 
 Price Formulas (Uniswap V3 Whitepaper):
 ───────────────────────────────────────

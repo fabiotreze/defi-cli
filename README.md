@@ -188,15 +188,36 @@ Reports are **temporary by design** — opened in your browser, then discarded. 
 
 ---
 
-## Data Sources
+## Data Sources & Technical References
+
+### Protocol Documentation
 
 | Source | Provides | Docs |
 |--------|----------|------|
-| Uniswap V3 Contracts | Position data, prices, fees | [Whitepaper](https://uniswap.org/whitepaper-v3.pdf) |
-| PancakeSwap V3 Contracts | Position data (same ABI) | [Addresses](https://developer.pancakeswap.finance/contracts/v3/addresses) |
-| SushiSwap V3 Contracts | Position data (same ABI) | [Addresses](https://docs.sushi.com/docs/Products/V3%20AMM/Periphery/Deployment%20Addresses) |
-| DEXScreener API | Pool metrics, volume, TVL | [API Docs](https://docs.dexscreener.com/api/reference) |
-| 1RPC.io TEE Relay | Privacy-preserving RPC | [Docs](https://docs.1rpc.io/web3-relay/overview) |
+| Uniswap V3 Core | sqrtPriceX96, tick math, liquidity, fees | [Whitepaper](https://uniswap.org/whitepaper-v3.pdf) · [Concepts](https://docs.uniswap.org/concepts/protocol/concentrated-liquidity) |
+| Uniswap V3 Contracts | Position Manager, Factory, Pool | [Deployments](https://docs.uniswap.org/contracts/v3/reference/deployments/) · [v3-core](https://github.com/Uniswap/v3-core) · [v3-periphery](https://github.com/Uniswap/v3-periphery) |
+| Uniswap V3 SDK | Tick/price helpers, liquidity math | [SDK Overview](https://docs.uniswap.org/sdk/v3/overview) · [Dev Book](https://uniswapv3book.com/) |
+| PancakeSwap V3 | Position data (same ABI as Uniswap V3) | [Addresses](https://developer.pancakeswap.finance/contracts/v3/addresses) · [Overview](https://developer.pancakeswap.finance/contracts/v3/overview) |
+| SushiSwap V3 | Position data (same ABI as Uniswap V3) | [Addresses](https://docs.sushi.com/docs/Products/V3%20AMM/Periphery/Deployment%20Addresses) · [Core](https://docs.sushi.com/docs/Products/V3%20AMM/Core/Overview) |
+
+### APIs & Data Providers
+
+| Source | Provides | Docs |
+|--------|----------|------|
+| DEXScreener API | Pool metrics, volume, TVL, price | [API Reference](https://docs.dexscreener.com/api/reference) |
+| DefiLlama Yields API | Cross-DEX pool discovery, APY | [API Docs](https://defillama.com/docs/api) |
+| 1RPC.io TEE Relay | Privacy-preserving JSON-RPC | [Overview](https://docs.1rpc.io/web3-relay/overview) |
+| Revert.finance | PnL cross-validation, historical data | [App](https://revert.finance) |
+
+### Standards & Specifications
+
+| Standard | Used For | Spec |
+|----------|----------|------|
+| Ethereum JSON-RPC | `eth_call`, `eth_getCode`, `eth_blockNumber` | [Spec](https://ethereum.org/en/developers/docs/apis/json-rpc/) |
+| Solidity ABI Encoding | Manual calldata encoding/decoding | [ABI Spec](https://docs.soliditylang.org/en/latest/abi-spec.html) |
+| ERC-721 (NFT) | V3 Position NFTs (NonfungiblePositionManager) | [EIP-721](https://eips.ethereum.org/EIPS/eip-721) |
+| ERC-20 | Token decimals/symbol metadata | [EIP-20](https://eips.ethereum.org/EIPS/eip-20) |
+| Pintail IL Formula | Impermanent loss calculation | [Article](https://pintail.medium.com/uniswap-a-good-deal-for-liquidity-providers-104c0b6816f2) |
 
 ---
 

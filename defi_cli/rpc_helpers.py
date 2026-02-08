@@ -13,6 +13,9 @@ position_reader.py and position_indexer.py:
 All constants reference the Ethereum ABI specification:
   https://docs.soliditylang.org/en/latest/abi-spec.html
 
+JSON-RPC Specification:
+  https://ethereum.org/en/developers/docs/apis/json-rpc/
+
 Terminology:
   • Word:  32 bytes = 256 bits = 64 hex characters
   • Slot:  Position of a 32-byte word in an ABI response

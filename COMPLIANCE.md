@@ -200,7 +200,17 @@ Ordered by **potential harm** — higher priority = greater damage if violated.
 
 ### Standards Applied
 - **Uniswap V3 Whitepaper** — https://uniswap.org/whitepaper-v3.pdf (§6.1-§6.3)
+- **Uniswap V3 Concepts** — https://docs.uniswap.org/concepts/protocol/concentrated-liquidity
+- **Uniswap V3 SDK** — https://docs.uniswap.org/sdk/v3/overview
+- **Uniswap V3 Core** — https://github.com/Uniswap/v3-core (sqrtPriceX96, slot0, feeGrowth)
+- **Uniswap V3 Periphery** — https://github.com/Uniswap/v3-periphery (NonfungiblePositionManager)
+- **PancakeSwap V3 Overview** — https://developer.pancakeswap.finance/contracts/v3/overview
+- **SushiSwap V3 Core** — https://docs.sushi.com/docs/Products/V3%20AMM/Core/Overview
 - **Pintail IL Formula** — https://pintail.medium.com/uniswap-a-good-deal-for-liquidity-providers-104c0b6816f2
+- **Ethereum JSON-RPC** — https://ethereum.org/en/developers/docs/apis/json-rpc/
+- **Solidity ABI Spec** — https://docs.soliditylang.org/en/latest/abi-spec.html
+- **ERC-721 (NFT)** — https://eips.ethereum.org/EIPS/eip-721
+- **ERC-20 (Token)** — https://eips.ethereum.org/EIPS/eip-20
 - **DEXScreener API** — https://docs.dexscreener.com/api/reference
 - **DefiLlama Yields API** — https://defillama.com/docs/api
 
