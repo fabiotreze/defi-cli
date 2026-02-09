@@ -1,0 +1,40 @@
+# ════════════════════════════════════════════════════════════════════════
+# Pre-commit hooks — runs automatically before every `git commit`
+# ════════════════════════════════════════════════════════════════════════
+# Blocks commit if any check fails. Ensures lint, format, and tests
+# pass BEFORE code reaches GitHub — catches issues the CI would reject.
+#
+# Install:  pre-commit install
+# Manual:   pre-commit run --all-files
+# Update:   pre-commit autoupdate
+# ════════════════════════════════════════════════════════════════════════
+
+repos:
+  # ── Ruff: lint + format (replaces flake8, isort, black) ────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        name: "🔍 ruff lint"
+        args: [check, --fix]
+      - id: ruff-format
+        name: "📐 ruff format"
+
+  # ── Tests: full suite (math + unit + codereview) ───────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: "🧪 pytest (307 tests)"
+        entry: python3 -m pytest tests/ -q --tb=short -k "not network"
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: security-gate
+        name: "🔒 Security Gate (T31-T40)"
+        entry: python3 -m pytest tests/test_codereview.py -q --tb=short -k "t31 or t32 or t33 or t34 or t35 or t36 or t37 or t38 or t39 or t40"
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
