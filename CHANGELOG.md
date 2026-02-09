@@ -21,10 +21,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - Test count: 307 total (83 math + 194 unit + 30 codereview)
 
 ### Added
-- **CI/CD pipeline** (`.github/workflows/ci.yml`) — 3-job GitHub Actions workflow:
-  - Lint & Security: ruff check + format, secrets scan, dangerous functions scan, HTTPS-only validation
+- **CI/CD pipeline** (`.github/workflows/ci.yml`) — 5-job GitHub Actions workflow:
+  - Lint & Static Security: ruff check + format, Bandit SAST, pip-audit dependency CVE scan, secrets scan, dangerous functions, HTTPS-only
   - Test Matrix: Python 3.10 / 3.11 / 3.12 with full offline test suite
-  - Codereview Report: T06–T30 validation uploaded as 30-day artifact
+  - **🔒 Security & Privacy Gate**: dedicated CI job enforcing T31-T40 (CWE/OWASP) + T09/T25/T27 (LGPD/GDPR) — blocks merge on ANY regression
+  - **📄 Doc Drift Check**: verifies README test count, SECURITY.md CWE refs, and COMPLIANCE.md T-IDs stay aligned with codebase
+  - Codereview Report: T06–T40 validation uploaded as 30-day artifact
   - T30 compliant: pinned SHA actions, least-privilege permissions, concurrency control
 - **CI badge** + **Security badge** (T09|T23|T25) added to README
 - **CI/CD Security section** added to SECURITY.md

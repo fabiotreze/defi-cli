@@ -1909,7 +1909,7 @@ def _t39_html_escape_stdlib(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 
 def _t40_owasp_cwe_audit(results: CodeReviewResults):
-    """T40: Comprehensive OWASP/CWE audit — all critical CWEs mitigated."""
+    """T40: Comprehensive OWASP/CWE audit — all critical CWEs enforced & CI-validated."""
     findings = []
 
     # CWE-79: XSS — check both _safe() and CSP
@@ -1973,7 +1973,7 @@ def _t40_owasp_cwe_audit(results: CodeReviewResults):
             findings.append(f"CWE-502: {f} unsafe deserialization")
 
     ok = len(findings) == 0
-    detail = "\n".join(findings) if findings else "All CWEs mitigated — OWASP A01-A10 compliant"
+    detail = "\n".join(findings) if findings else "All CWEs enforced & CI-validated — OWASP A01-A10 compliant"
     results.add("T40", "OWASP/CWE/CVE audit", ok, detail, "CRITICAL")
 
 

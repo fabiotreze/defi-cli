@@ -2,8 +2,13 @@
 # DeFi CLI — Continuous Integration Pipeline
 # ════════════════════════════════════════════════════════════════════════
 # Runs on every push to main and every PR targeting main.
-# Executes lint, security scans, and the full offline test suite
-# across Python 3.10 / 3.11 / 3.12.
+# Executes lint, SAST, dependency audit, security/privacy gate, and
+# the full offline test suite across Python 3.10 / 3.11 / 3.12.
+#
+# Security & Privacy controls (T31-T40) are ENFORCED here — any
+# regression in CSP, EIP-55, error sanitization, rate limiting,
+# temp-file security, masking, tick bounds, XSS, or OWASP compliance
+# will FAIL the pipeline and BLOCK the merge.
 #
 # T30 Compliance:
 #   ✅ All actions pinned by SHA (not tag)
@@ -30,10 +35,10 @@ concurrency:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════
-  # JOB 1: Lint & Security Scan
+  # JOB 1: Lint & Static Security Scan
   # ═══════════════════════════════════════════════════════════════════
   lint:
-    name: Lint & Security
+    name: Lint & Static Security
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -57,13 +62,26 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff
+          pip install ruff bandit pip-audit
 
       - name: Ruff lint check
         run: ruff check . --output-format=github
 
       - name: Ruff format check
         run: ruff format --check .
+
+      - name: Bandit SAST scan (OWASP A06)
+        run: |
+          echo "🔍 Running Bandit static analysis..."
+          bandit -r . -x ./tests,./docs,./.github -f txt -ll
+          echo "✅ Bandit SAST passed"
+
+      - name: Dependency vulnerability audit (OWASP A06)
+        run: |
+          echo "🔍 Auditing dependencies for known CVEs..."
+          pip install -r requirements.txt
+          pip-audit -r requirements.txt --strict
+          echo "✅ No known vulnerabilities in dependencies"
 
       - name: Security scan — sensitive patterns
         run: |
@@ -142,19 +160,175 @@ jobs:
       - name: Math engine tests (83 tests)
         run: pytest tests/test_math.py -v --tb=short
 
-      - name: Unit tests (195 tests)
+      - name: Unit tests (194 tests)
         run: pytest tests/test_units.py -v --tb=short
 
-      - name: Code review tests — offline (T06–T30)
+      - name: Code review tests — offline (T06–T40)
         run: pytest tests/test_codereview.py -v --tb=short -k "not network"
 
   # ═══════════════════════════════════════════════════════════════════
-  # JOB 3: Codereview Report (artifact)
+  # JOB 3: Security & Privacy Gate (MUST PASS)
+  # ═══════════════════════════════════════════════════════════════════
+  # This job runs ONLY the security and privacy tests as an explicit
+  # gate.  If ANY security control is removed or broken, this job
+  # fails and the merge is blocked.
+  #
+  # Controls enforced:
+  #   T09  — No hardcoded secrets / sensitive data
+  #   T23  — No vulnerabilities (eval/exec/http/pickle)
+  #   T25  — LGPD compliance (data minimization, no PII)
+  #   T27  — No tracking / telemetry
+  #   T31  — Nonce-based CSP headers (CWE-79)
+  #   T32  — EIP-55 address checksum validation (CWE-20)
+  #   T33  — Error message sanitization (CWE-209)
+  #   T34  — Client-side rate limiter (CWE-770)
+  #   T35  — Temp file cleanup + 0o600 perms (CWE-377/459, LGPD)
+  #   T36  — RPC URL masking in reports (CWE-200)
+  #   T37  — Wallet address masking in output (CWE-532, LGPD)
+  #   T38  — Tick bounds clamping (CWE-682)
+  #   T39  — html.escape() stdlib for XSS (CWE-79)
+  #   T40  — OWASP/CWE comprehensive audit
+  # ═══════════════════════════════════════════════════════════════════
+  security-gate:
+    name: "🔒 Security & Privacy Gate"
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-security-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-security-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: "🛡️ Security controls (T31-T40) — CWE/OWASP enforcement"
+        run: |
+          echo "════════════════════════════════════════════════════"
+          echo "  SECURITY GATE — These controls can NEVER regress"
+          echo "════════════════════════════════════════════════════"
+          pytest tests/test_codereview.py -v --tb=short \
+            -k "t31 or t32 or t33 or t34 or t35 or t36 or t37 or t38 or t39 or t40"
+          echo "✅ All security controls enforced"
+
+      - name: "🔐 Privacy controls (T09, T25, T27) — LGPD/GDPR enforcement"
+        run: |
+          echo "════════════════════════════════════════════════════"
+          echo "  PRIVACY GATE — Data protection can NEVER regress"
+          echo "════════════════════════════════════════════════════"
+          pytest tests/test_codereview.py -v --tb=short \
+            -k "t09 or t25 or t27"
+          echo "✅ All privacy controls enforced"
+
+      - name: "📋 Vulnerability scan (T23) — eval/exec/secrets/http"
+        run: |
+          pytest tests/test_codereview.py -v --tb=short -k "t23"
+          echo "✅ Vulnerability scan passed"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # JOB 4: Documentation Drift Check
+  # ═══════════════════════════════════════════════════════════════════
+  # Verifies that SECURITY.md, README.md, and COMPLIANCE.md stay
+  # aligned with the actual codebase.  Catches stale test counts,
+  # missing CWE references, and outdated badge labels.
+  # ═══════════════════════════════════════════════════════════════════
+  doc-drift:
+    name: "📄 Doc Drift Check"
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Verify test count matches README
+        run: |
+          ACTUAL=$(pytest tests/ --collect-only -q 2>&1 | tail -1 | grep -oE '[0-9]+' | head -1)
+          echo "Actual test count: $ACTUAL"
+          if grep -q "$ACTUAL tests" README.md; then
+            echo "✅ README test count ($ACTUAL) matches"
+          else
+            echo "❌ README test count does not match actual ($ACTUAL)"
+            exit 1
+          fi
+
+      - name: Verify SECURITY.md references T31-T40
+        run: |
+          MISSING=0
+          for T in T31 T32 T33 T34 T35 T36 T37 T38 T39 T40; do
+            if ! grep -q "$T" SECURITY.md; then
+              echo "❌ SECURITY.md missing reference to $T"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then exit 1; fi
+          echo "✅ SECURITY.md references all security controls"
+
+      - name: Verify COMPLIANCE.md references T31-T40
+        run: |
+          MISSING=0
+          for T in T31 T32 T33 T34 T35 T36 T37 T38 T39 T40; do
+            if ! grep -q "$T" COMPLIANCE.md; then
+              echo "❌ COMPLIANCE.md missing reference to $T"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then exit 1; fi
+          echo "✅ COMPLIANCE.md references all security controls"
+
+      - name: Verify CWE IDs in codebase match SECURITY.md
+        run: |
+          echo "🔍 Cross-referencing CWE IDs..."
+          MISSING=0
+          for CWE in CWE-20 CWE-79 CWE-200 CWE-209 CWE-377 CWE-459 CWE-532 CWE-682 CWE-770; do
+            if ! grep -q "$CWE" SECURITY.md; then
+              echo "❌ SECURITY.md missing $CWE"
+              MISSING=1
+            fi
+            if ! grep -q "$CWE" tests/test_codereview.py; then
+              echo "❌ test_codereview.py missing $CWE"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then exit 1; fi
+          echo "✅ All CWE IDs documented and tested"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # JOB 5: Codereview Report (artifact)
   # ═══════════════════════════════════════════════════════════════════
   codereview:
     name: Code Review Report
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, security-gate, doc-drift]
     permissions:
       contents: read
 

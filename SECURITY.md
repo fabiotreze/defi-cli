@@ -152,8 +152,28 @@ The project uses GitHub Actions with the following security controls:
 | **Least Privilege** | `permissions: contents: read` — no write access |
 | **Concurrency** | `cancel-in-progress: true` — prevents resource abuse on stale runs |
 | **Lint + Format** | `ruff check` + `ruff format --check` enforced on every push/PR |
+| **SAST** | Bandit static analysis on all production code (OWASP A06) |
+| **Dependency Audit** | `pip-audit` checks all dependencies for known CVEs (OWASP A06) |
 | **Security Scans** | Hardcoded secrets (T09), dangerous functions (`eval`/`exec`/`pickle`), HTTPS-only URLs |
 | **Test Matrix** | Python 3.10 / 3.11 / 3.12 — math, unit, and codereview tests |
-| **Codereview Report** | Full T06–T30 validation suite uploaded as artifact (30-day retention) |
+| **🔒 Security Gate** | Dedicated CI job: T31-T40 (CWE/OWASP enforcement) — blocks merge if ANY control regresses |
+| **🔐 Privacy Gate** | Dedicated CI job: T09, T25, T27 (LGPD/GDPR enforcement) — blocks merge if privacy degrades |
+| **📄 Doc Drift Check** | Verifies README test counts, SECURITY.md CWE refs, and COMPLIANCE.md T-IDs stay aligned |
+| **Codereview Report** | Full T06–T40 validation suite uploaded as artifact (30-day retention) |
+
+### Security & Privacy Controls — CI-Enforced (can NEVER regress)
+
+| Test | Control | CWE/Standard | Status |
+|------|---------|-------------|--------|
+| T31 | Nonce-based CSP headers | CWE-79 | **Enforced** |
+| T32 | EIP-55 address checksum | CWE-20 | **Enforced** |
+| T33 | Error message sanitization | CWE-209 | **Enforced** |
+| T34 | Client-side rate limiter | CWE-770 | **Enforced** |
+| T35 | Temp file cleanup + 0o600 | CWE-377/459, LGPD Art. 6 III | **Enforced** |
+| T36 | RPC URL masking in reports | CWE-200 | **Enforced** |
+| T37 | Wallet address masking | CWE-532, LGPD Art. 6 III | **Enforced** |
+| T38 | Tick bounds clamping | CWE-682 | **Enforced** |
+| T39 | html.escape() stdlib XSS | CWE-79 | **Enforced** |
+| T40 | OWASP/CWE comprehensive audit | OWASP A01-A10 | **Enforced** |
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full pipeline definition.
