@@ -228,7 +228,7 @@ async def cmd_list(
     wallet: str, network: str = "arbitrum", dex: str | None = None
 ) -> None:
     """List all V3-compatible positions for a wallet (scans all DEXes)."""
-    from position_indexer import PositionIndexer
+    from position_indexer import PositionIndexer, ScanProgress
 
     if not wallet or not re.fullmatch(r"0x[0-9a-fA-F]{40}", wallet):
         print("❌ Invalid wallet address. Must be 42 hex characters starting with 0x.")
@@ -239,9 +239,15 @@ async def cmd_list(
     else:
         print(f"\n🔄 Scanning ALL V3-compatible DEXes on {network.title()}...")
     print("=" * 65)
+    print()
 
     indexer = PositionIndexer(network)
-    positions = await indexer.list_positions(wallet, dex_slug=dex)
+
+    # Build progress bar — count total DEX scans
+    dex_contracts = indexer._get_dex_contracts(dex)
+    progress = ScanProgress(total=len(dex_contracts))
+
+    positions = await indexer.list_positions(wallet, dex_slug=dex, progress=progress)
 
     print(f"\n{'=' * 65}")
     print(f"  V3-Compatible Positions — {network.title()}")

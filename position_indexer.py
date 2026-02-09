@@ -26,6 +26,7 @@ Contract References:
 """
 
 import asyncio
+import sys
 from typing import Dict, List
 
 from defi_cli.rpc_helpers import (
@@ -66,6 +67,53 @@ _FALLBACK_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
 
 # RPC_URLS and SELECTORS are imported from defi_cli.rpc_helpers (single source of truth).
 # ABI encoding/decoding and JSON-RPC client also imported from rpc_helpers.
+
+
+# ── Progress Bar Helper ─────────────────────────────────────────────────
+
+
+class ScanProgress:
+    """Inline progress bar for wallet scan — zero dependencies."""
+
+    def __init__(self, total: int, bar_width: int = 25):
+        self._total = total
+        self._done = 0
+        self._bar_width = bar_width
+        self._hits: list[str] = []  # lines to print above the bar
+
+    def advance(
+        self,
+        icon: str,
+        dex_name: str,
+        network: str,
+        found: int = 0,
+        error: str = "",
+    ) -> None:
+        """Mark one scan step complete and redraw the progress bar."""
+        self._done += 1
+        pct = int(self._done / self._total * 100) if self._total else 100
+        filled = int(pct / 100 * self._bar_width)
+        bar = "█" * filled + "░" * (self._bar_width - filled)
+
+        # If positions were found, print a persistent line above the bar
+        if found > 0:
+            line = f"  {icon} {dex_name:<16s} {network} — ✅ {found} NFTs"
+            self._hits.append(line)
+            sys.stdout.write(f"\r{' ' * 80}\r")  # clear bar line
+            sys.stdout.write(f"{line}\n")
+        elif error:
+            line = f"  {icon} {dex_name:<16s} {network} — ⚠️  {error}"
+            self._hits.append(line)
+            sys.stdout.write(f"\r{' ' * 80}\r")
+            sys.stdout.write(f"{line}\n")
+
+        # Draw/update the progress bar
+        label = f"{icon} {dex_name:<16s} {network}"
+        if self._done >= self._total:
+            sys.stdout.write(f"\r  [{'█' * self._bar_width}] 100%  Done!{' ' * 30}\n")
+        else:
+            sys.stdout.write(f"\r  [{bar}] {pct:3d}%  {label}{' ' * 10}")
+        sys.stdout.flush()
 
 
 # ── Position Indexer ────────────────────────────────────────────────────
@@ -262,7 +310,10 @@ class PositionIndexer:
         }
 
     async def list_positions(
-        self, wallet: str, dex_slug: str | None = None
+        self,
+        wallet: str,
+        dex_slug: str | None = None,
+        progress: ScanProgress | None = None,
     ) -> List[Dict]:
         """
         Discover and list ALL V3-compatible positions for a wallet.
@@ -279,6 +330,7 @@ class PositionIndexer:
             wallet: Ethereum wallet address (0x...)
             dex_slug: Optional DEX slug (e.g., "uniswap_v3") to scan only one DEX.
                       If None, scans all compatible DEXes on the network.
+            progress: Optional ScanProgress for inline progress bar updates.
 
         Returns:
             List of position summaries, sorted by DEX then liquidity (active first).
@@ -301,20 +353,25 @@ class PositionIndexer:
             factory = dex["factory"]
             positions = []
 
-            print(f"\n  {dex_icon} Scanning {dex_name} — {self.network.title()}...")
-            print(f"     PositionManager: {pm[:16]}...")
+            if not progress:
+                print(f"\n  {dex_icon} Scanning {dex_name} — {self.network.title()}...")
+                print(f"     PositionManager: {pm[:16]}...")
 
             try:
                 # Step 1: Count
                 count = await self.get_position_count(wallet, pm)
-                print(f"     📊 Found {count} position NFT(s)")
+                if not progress:
+                    print(f"     📊 Found {count} position NFT(s)")
 
                 if count == 0:
+                    if progress:
+                        progress.advance(dex_icon, dex_name, self.network, found=0)
                     return positions
 
                 # Step 2: Get all token IDs
                 token_ids = await self.get_token_ids(wallet, count, pm)
-                print(f"     📋 Token IDs: {token_ids}")
+                if not progress:
+                    print(f"     📋 Token IDs: {token_ids}")
 
                 # Step 3: Read each position summary (parallel per DEX)
                 async def _read(tid):
@@ -326,20 +383,35 @@ class PositionIndexer:
                             dex_slug=dex["slug"],
                             dex_name=dex_name,
                         )
-                        status = "🟢 Active" if summary["is_active"] else "⚪ Closed"
-                        print(
-                            f"     #{tid} — {summary['pair']} {summary['fee_label']} — {status}"
-                        )
+                        if not progress:
+                            status = (
+                                "🟢 Active" if summary["is_active"] else "⚪ Closed"
+                            )
+                            print(
+                                f"     #{tid} — {summary['pair']} "
+                                f"{summary['fee_label']} — {status}"
+                            )
                         return summary
                     except Exception as e:
-                        print(f"     #{tid} — ❌ Error: {e}")
+                        if not progress:
+                            print(f"     #{tid} — ❌ Error: {e}")
                         return None
 
                 summaries = await asyncio.gather(*[_read(tid) for tid in token_ids])
                 positions = [s for s in summaries if s is not None]
 
+                if progress:
+                    progress.advance(
+                        dex_icon, dex_name, self.network, found=len(positions)
+                    )
+
             except Exception as e:
-                print(f"     ❌ {dex_name} scan failed: {e}")
+                if progress:
+                    progress.advance(
+                        dex_icon, dex_name, self.network, error=str(e)[:50]
+                    )
+                else:
+                    print(f"     ❌ {dex_name} scan failed: {e}")
 
             return positions
 
