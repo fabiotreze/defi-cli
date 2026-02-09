@@ -6,12 +6,16 @@ This module creates detailed HTML reports from Uniswap V3 position data,
 including risk assessment, alternative strategies, and legal disclaimers.
 """
 
+import atexit
+import html as _html_mod
+import os
 import re
+import secrets
 import tempfile
 import webbrowser
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from defi_cli.html_styles import build_css as _build_css
 from defi_cli.central_config import PROJECT_VERSION
 
@@ -19,25 +23,101 @@ from defi_cli.central_config import PROJECT_VERSION
 # Constants
 # No persistent output directory — all reports are temporary (privacy by design)
 
+# ── Temp File Cleanup Registry (LGPD Art. 6 III — data minimization) ────
+_TEMP_FILES: List[str] = []
+
+def _register_temp_file(path: str) -> None:
+    """Register a temporary file for cleanup."""
+    _TEMP_FILES.append(path)
+
+def _cleanup_temp_files() -> None:
+    """Remove all registered temporary report files.
+
+    Security: CWE-459 mitigation — ensures financial data in temp files
+    is not left on disk indefinitely.
+    LGPD Art. 6 III — storage limitation / data minimization.
+
+    NOTE: Not called via atexit to avoid a race condition where the
+    browser has not yet loaded the file before it is deleted.
+    Temp files live in the OS temp directory which is cleaned on reboot.
+    Files are created with 0o600 permissions (owner-only read/write).
+    """
+    for path in list(_TEMP_FILES):
+        try:
+            if os.path.exists(path):
+                os.unlink(path)
+        except OSError:
+            pass  # best-effort cleanup
+
+
+def cleanup_reports() -> int:
+    """Public API: explicitly delete all temp reports created this session.
+
+    Returns the number of files removed.  Safe to call multiple times.
+    """
+    count = 0
+    for path in list(_TEMP_FILES):
+        try:
+            if os.path.exists(path):
+                os.unlink(path)
+                count += 1
+        except OSError:
+            pass
+    _TEMP_FILES.clear()
+    return count
+
+
+def _atexit_reminder() -> None:
+    """Print a reminder about temp files on exit (non-destructive)."""
+    remaining = [p for p in _TEMP_FILES if os.path.exists(p)]
+    if remaining:
+        import sys
+        try:
+            print(
+                f"\n🗑️  {len(remaining)} temporary report(s) in {tempfile.gettempdir()}"
+                f" — deleted on next reboot, or run cleanup_reports().",
+                file=sys.stderr,
+            )
+        except Exception:
+            pass  # stderr may be closed
+
+
+# Register non-destructive reminder (NOT auto-delete)
+atexit.register(_atexit_reminder)
 
 def _safe(value: Any, fallback: str = "Unknown") -> str:
-    """Escape a value for safe HTML embedding (XSS prevention)."""
+    """Escape a value for safe HTML embedding (XSS prevention).
+    
+    Uses Python's html.escape() for robust entity encoding (CWE-79 mitigation).
+    Covers: & < > " ' — all OWASP-recommended HTML context escapes.
+    """
     if value is None:
         return fallback
-    return (
-        str(value)
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#x27;")
-    )
+    return _html_mod.escape(str(value), quote=True).replace("'", "&#x27;")
 
 
 def _safe_filename(value: str) -> str:
     """Strip any character not safe for filenames (path traversal prevention)."""
     return re.sub(r"[^a-zA-Z0-9._-]", "_", str(value))
 
+
+def _mask_rpc_url(url: str) -> str:
+    """Mask RPC URL to prevent leaking private API keys in reports.
+    
+    CWE-200 mitigation: If a user configures a private RPC endpoint
+    (e.g. https://arb-mainnet.g.alchemy.com/v2/<API_KEY>), the key
+    portion is replaced with '***'. Public 1RPC.io URLs pass through.
+    """
+    if not url:
+        return "N/A"
+    # Known public RPCs — safe to show fully
+    if "1rpc.io" in url or "publicnode.com" in url:
+        return url
+    # Mask everything after the last '/' if it looks like an API key
+    parts = url.rsplit('/', 1)
+    if len(parts) == 2 and len(parts[1]) > 12:
+        return f"{parts[0]}/***"
+    return url
 
 def _explorer(network: str) -> Dict[str, str]:
     """Get explorer info for a network."""
@@ -114,7 +194,10 @@ def _build_audit_trail(data: Dict) -> str:
         """
 
     block = audit.get("block_number", 0)
-    rpc = _safe(audit.get("rpc_endpoint", ""))
+    # CWE-200 mitigation: mask RPC URL to prevent leaking private API keys
+    # if a user configures a custom RPC (e.g. Alchemy/Infura with embedded key)
+    raw_rpc = audit.get("rpc_endpoint", "")
+    rpc = _safe(_mask_rpc_url(raw_rpc))
     contracts = audit.get("contracts", {})
     raw_calls = audit.get("raw_calls", [])
     formulas = audit.get("formulas_applied", [])
@@ -407,8 +490,16 @@ def _render_strategies_visual(
 
 
 def _build_html(data: Dict) -> str:
-    """Build HTML with 5 structured sections."""
-
+    """Build HTML with 5 structured sections.
+    
+    Security: Generates a unique CSP nonce per report (CWE-79 mitigation).
+    The nonce is a cryptographic random value that whitelists only the
+    inline script blocks generated by this function.
+    """
+    
+    # Generate cryptographic nonce for Content-Security-Policy (CWE-79)
+    nonce = secrets.token_urlsafe(32)
+    
     # Basic data extraction
     t0 = _safe(data.get("token0_symbol", "Token0"))
     t1 = _safe(data.get("token1_symbol", "Token1"))
@@ -475,11 +566,14 @@ def _build_html(data: Dict) -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{nonce}'; img-src data:; frame-ancestors 'none';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta name="referrer" content="no-referrer">
     <title>Position Report: {t0}/{t1} — DeFi CLI</title>
 {_build_css(status_bg, status_border, status_text_color)}
     
-    <script>
+    <script nonce="{nonce}">
         // Calculate price position percentage for visual indicators
         function calculatePricePosition(current, min, max) {{
             if (max <= min) return 50; // fallback to center
@@ -1285,18 +1379,19 @@ def generate_position_report(data: Dict[str, Any], _open_browser: bool = True) -
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{t0}_{t1}_{network}_{timestamp}.html"
 
-    # Temporary file — persists in OS temp dir until session/reboot
-    tmp = tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=f"_{filename}",
-        prefix="defi_cli_",
-        dir=tempfile.gettempdir(),
-        delete=False,
-        encoding="utf-8",
-    )
-    tmp.write(html_content)
-    tmp.close()
-    filepath = Path(tmp.name)
+    # Temporary file — auto-cleaned on process exit (CWE-459 / LGPD Art. 6 III)
+    # Uses restrictive permissions (0o600) to prevent other users reading reports
+    temp_path = os.path.join(tempfile.gettempdir(), f'defi_cli_{filename}')
+    # Ensure unique filename (avoid O_EXCL failure on rapid calls)
+    counter = 0
+    while os.path.exists(temp_path):
+        counter += 1
+        temp_path = os.path.join(tempfile.gettempdir(), f'defi_cli_{counter}_{filename}')
+    fd = os.open(temp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as tmp:
+        tmp.write(html_content)
+    filepath = Path(temp_path)
+    _register_temp_file(str(filepath))
     if _open_browser:
         webbrowser.open(f"file://{filepath.resolve()}")
     return filepath

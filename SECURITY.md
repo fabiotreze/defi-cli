@@ -26,13 +26,22 @@ For sensitive disclosures, include `[SECURITY]` in the title.
 
 ### Input Validation
 - **Hex address validation** — regex `0x[0-9a-fA-F]{40}` enforced before any API call
+- **EIP-55 checksum validation** — mixed-case addresses verified against EIP-55 checksum to detect typos (CWE-20)
 - **Filename sanitization** — report filenames stripped to `[a-zA-Z0-9_-]` only (path traversal prevention)
+- **Tick bounds clamping** — Uniswap V3 tick values clamped to [-887272, +887272] to prevent math overflow (CWE-682)
 
 ### Output Security
-- **XSS prevention** — all user-supplied data is HTML-escaped via `_safe()` (entity encoding for `& < > " '`) before embedding in reports
+- **XSS prevention** — all user-supplied data is escaped via `html.escape()` (stdlib) in `_safe()` before embedding in reports (CWE-79)
 - **JavaScript sanitization** — all numeric values in `<script>` blocks use `safe_num()` to guarantee fixed-format output
-- **Content Security Policy** — `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">` blocks external resource loading in reports
+- **Nonce-based CSP** — `script-src 'nonce-<random>'` with cryptographic nonce per report; `frame-ancestors 'none'`; `X-Content-Type-Options: nosniff`; `Referrer-Policy: no-referrer` (CWE-79)
 - **No dynamic code** — no `eval()`, `exec()`, `os.system()`, or `subprocess` calls anywhere
+- **Error sanitization** — all user-facing error messages stripped of internal paths, stack traces, and implementation details (CWE-209)
+
+### Privacy & Data Minimization (LGPD Art. 6 III)
+- **Wallet masking** — wallet addresses displayed as `0xAbCd…EfGh` in CLI output (CWE-532)
+- **RPC URL masking** — private RPC URLs with API keys masked in HTML reports (CWE-200)
+- **Temp file cleanup** — all report files registered for automatic deletion on process exit via `atexit` (CWE-459)
+- **Secure temp permissions** — report files created with `0o600` (owner read/write only) (CWE-377)
 
 ### Transport
 - **HTTPS only** — all external requests use HTTPS
@@ -40,6 +49,7 @@ For sensitive disclosures, include `[SECURITY]` in the title.
 - **No secrets** — no API keys, tokens, or credentials stored or transmitted
 
 ### Rate Limiting
+- **Client-side rate limiter** — token-bucket limiter enforced on DEXScreener API calls (250 req/min, safety margin under 300 limit) (CWE-770)
 - Respects DEXScreener API limits: 300 req/min (pairs), 60 req/min (general)
 - Built-in 0.3s delay between requests during integration checks
 

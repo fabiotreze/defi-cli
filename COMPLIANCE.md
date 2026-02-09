@@ -33,13 +33,17 @@ Ordered by **potential harm** — higher priority = greater damage if violated.
 | Control | Implementation | Verification |
 |---------|---------------|-------------|
 | No private key access | Read-only design — zero write operations | T23: grep for `private_key`, `secret`, `mnemonic` |
-| No `eval`/`exec`/`pickle`/`subprocess` | Forbidden patterns | T23: AST scan of all .py files |
-| Input validation | `re.fullmatch(r"0x[0-9a-fA-F]{40}", addr)` | T06: syntax, T15: pipeline |
-| XSS prevention | `html.escape()` via `_safe()` for all user data | T20: HTML structure, T23 |
-| CSP headers | `default-src 'none'` in HTML reports | T20: HTML report |
+| No `eval`/`exec`/`pickle`/`subprocess` | Forbidden patterns | T23, T40: AST scan of all .py files |
+| Input validation | `re.fullmatch(r"0x[0-9a-fA-F]{40}", addr)` + EIP-55 checksum | T06: syntax, T15: pipeline, T32: EIP-55 |
+| XSS prevention | `html.escape()` (stdlib) via `_safe()` for all user data | T20: HTML structure, T39: stdlib check, T40 |
+| Nonce-based CSP | `script-src 'nonce-<random>'`; `frame-ancestors 'none'` | T31: CSP nonce test |
+| Error sanitization | `_sanitize_error()` strips paths/traces from user output | T33: error message scan |
 | HTTPS only | All external calls via `https://` | T23: grep for `http://` (must be zero) |
+| Rate limiting | Token-bucket `_RateLimiter` on DEXScreener + RPC calls | T34: rate limiter presence |
 | Minimal dependencies | 1 runtime dep (`httpx`), 7 transitive | T21: requirements, T24: file integrity |
 | Supply chain | Dependabot enabled, version pinning in pyproject.toml | GitHub Dependabot alerts |
+| Temp file security | `atexit` cleanup + `0o600` permissions (CWE-377/459) | T35: temp cleanup test |
+| RPC URL masking | Private API keys in RPC URLs masked in HTML reports | T36: RPC URL masking test |
 
 ### Code References
 - Input validation: `commands.py` → `_prompt_address()` (regex)
@@ -60,11 +64,11 @@ Ordered by **potential harm** — higher priority = greater damage if violated.
 
 | LGPD/GDPR Principle | Implementation | Verification |
 |---------------------|---------------|-------------|
-| **Data minimization** (LGPD Art. 6 III / GDPR Art. 5(1)(c)) | Only public on-chain data read; no PII | T09: sensitive data scan |
+| **Data minimization** (LGPD Art. 6 III / GDPR Art. 5(1)(c)) | Only public on-chain data read; no PII; wallet addresses masked in output | T09: sensitive data scan, T37: wallet masking |
 | **Purpose limitation** (LGPD Art. 6 I / GDPR Art. 5(1)(b)) | Educational analysis only | Disclaimers in all output (T19) |
-| **Storage limitation** (LGPD Art. 6 V / GDPR Art. 5(1)(e)) | Zero persistence — temp files only, no DB/cache | T24: no `reports/` dir, no `.db` files |
-| **Integrity & confidentiality** (LGPD Art. 6 VII / GDPR Art. 5(1)(f)) | HTTPS + 1RPC.io TEE relay | T17: RPC connectivity, T23: HTTPS-only |
-| **Right to erasure** (LGPD Art. 18 VI / GDPR Art. 17) | Trivial — no remote data stored | By design |
+| **Storage limitation** (LGPD Art. 6 V / GDPR Art. 5(1)(e)) | Zero persistence — temp files auto-cleaned on exit via atexit, 0o600 perms | T24, T35: temp cleanup test |
+| **Integrity & confidentiality** (LGPD Art. 6 VII / GDPR Art. 5(1)(f)) | HTTPS + 1RPC.io TEE relay + nonce CSP + error sanitization | T17, T23, T31, T33 |
+| **Right to erasure** (LGPD Art. 18 VI / GDPR Art. 17) | Trivial — no remote data stored; local temps auto-cleaned | By design + T35 |
 | **Consent** (LGPD Art. 7 I / GDPR Art. 6(1)(a)) | Explicit opt-in before any data-accessing command | T19: disclaimers present |
 
 ### Data Flow Per Command
@@ -344,11 +348,11 @@ Each of the 50 codereview categories in `.codereview.md` maps to a priority leve
 
 | Priority | Automated Tests | Coverage |
 |----------|----------------|----------|
-| P1 Security | T09, T23, T30 | Secrets scan, vuln scan (eval/exec/http), CSP, CI/CD security (pinned SHAs, permissions, concurrency) |
-| P2 Privacy | T09, T17, T24, T25, T27 | No PII, RPC connectivity (1RPC.io), no persistence, LGPD compliance, no tracking |
+| P1 Security | T09, T23, T30, T31, T32, T33, T34, T40 | Secrets scan, vuln scan (eval/exec/http), CSP, CI/CD security (pinned SHAs, permissions, concurrency), nonce CSP, EIP-55, error sanitization, rate limiter, OWASP audit |
+| P2 Privacy | T09, T17, T24, T25, T27, T35, T36, T37 | No PII, RPC connectivity (1RPC.io), no persistence, LGPD compliance, no tracking, temp cleanup, RPC masking, wallet masking |
 | P3 Consent | T19, T20 | Disclaimers in output, HTML sections present |
 | P4 Liability | T19, T24, T26 | Disclaimers present, LICENSE file exists, CVM disclaimer |
-| P5 Accuracy | T05, T11, T12, T13, T14, T15 | 83 formula tests, roundtrip, symmetry, pipeline |
+| P5 Accuracy | T05, T11, T12, T13, T14, T15, T38 | 83 formula tests, roundtrip, symmetry, pipeline, tick bounds |
 | P6 Regulatory | T19, T26 | Disclaimer text includes regulatory notices, CVM compliance |
 | P7 Versioning | T08, T21, T24 | Version consistency, requirements, file integrity, single-source version via importlib.metadata, release workflow (tag↔version validation) |
 
@@ -370,6 +374,7 @@ All services are accessed via **HTTPS only**, verified by T23 (no `http://` in c
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.2 | 2026-02-09 | Security hardening: nonce CSP (CWE-79), EIP-55 validation (CWE-20), error sanitization (CWE-209), rate limiter (CWE-770), temp file cleanup (CWE-459), wallet masking (CWE-532), RPC URL masking (CWE-200), tick bounds (CWE-682), html.escape stdlib (CWE-79). Added T31–T40 automated tests. |
 | 1.1.1 | 2026-02-08 | Single-source version (pyproject.toml → importlib.metadata). Release workflow added. |
 | 1.1.0 | 2026-02-08 | Added T25–T30 (LGPD, CVM, tracking, Azure IaC, Docker, CI/CD). CI pipeline added. |
 | 1.0.0 | 2026-02-07 | Initial P1–P7 compliance framework |

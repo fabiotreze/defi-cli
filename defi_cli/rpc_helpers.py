@@ -232,8 +232,9 @@ async def eth_call(rpc_url: str, to: str, data: str, timeout: int = 20) -> str:
         resp = await client.post(rpc_url, json=payload)
         result = resp.json()
         if "error" in result:
+            # CWE-209: sanitize RPC error — do not expose full node error
             raise RuntimeError(
-                f"RPC error: {result['error'].get('message', result['error'])}"
+                "RPC call failed (contract may not exist or is not deployed on this network)"
             )
         raw = result.get("result", "0x")
         if raw == "0x" or len(raw) < 4:
@@ -302,5 +303,5 @@ async def eth_block_number(rpc_url: str, timeout: int = 10) -> int:
         resp = await client.post(rpc_url, json=payload)
         result = resp.json()
         if "error" in result:
-            raise RuntimeError(f"RPC error: {result['error']}")
+            raise RuntimeError("RPC call failed (block number query)")
         return int(result["result"], 16)

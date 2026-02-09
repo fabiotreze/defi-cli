@@ -415,7 +415,7 @@ class TestEthCallMocked:
             MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            with pytest.raises(RuntimeError, match="RPC error"):
+            with pytest.raises(RuntimeError, match="RPC call failed"):
                 asyncio.run(eth_call("http://fake", "0xAddr", "0xData"))
 
     def test_empty_response_raises(self):
@@ -1013,7 +1013,8 @@ class TestRequireConsent:
 
 class TestPromptAddress:
     def test_valid_address(self):
-        addr = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
+        # Use all-lowercase address (pre-EIP-55) to avoid checksum validation
+        addr = "0xc36442b4a4522e871399cd717abdd847ab11fe88"
         with patch("builtins.input", return_value=addr):
             result = _prompt_address("pool")
             assert result == addr

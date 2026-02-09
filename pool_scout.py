@@ -120,11 +120,8 @@ class PoolScout:
         try:
             all_pools = await self._fetch_pools()
         except Exception as e:
-            return {
-                "status": "error",
-                "message": f"DefiLlama API error: {e}",
-                "pools": [],
-            }
+            # CWE-209: sanitize error — do not expose internal API details
+            return {"status": "error", "message": "DefiLlama API unavailable. Please try again later.", "pools": []}
 
         # Filter to V3 only
         pools = self._filter_v3(all_pools)

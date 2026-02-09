@@ -274,14 +274,23 @@ class UniswapV3Math:
         """
         if price <= 0:
             raise ValueError("Price must be positive")
-        return math.floor(math.log(price) / math.log(1.0001))
+        # Uniswap V3 valid tick range: [-887272, +887272]
+        # CWE-682 mitigation: clamp extreme values to prevent math overflow
+        raw_tick = math.log(price) / math.log(1.0001)
+        clamped = max(-887272, min(887272, raw_tick))
+        return math.floor(clamped)
 
     @staticmethod
     def tick_to_price(tick: int) -> float:
         """
         Convert a tick index back to a price.
         Formula (Whitepaper §6.1): p(i) = 1.0001^i
+        
+        CWE-682 mitigation: validates tick is within Uniswap V3 bounds
+        [-887272, +887272] to prevent floating-point overflow.
         """
+        # Clamp tick to valid Uniswap V3 range to prevent overflow
+        tick = max(-887272, min(887272, tick))
         return 1.0001**tick
 
     @staticmethod

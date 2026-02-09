@@ -9,12 +9,47 @@ Replaces simulated data with real data from the DEXScreener API.
 
 import asyncio
 import re
+import time
 import httpx
 from typing import Dict, Any, Optional
 from datetime import datetime
 
 from defi_cli.central_config import config
 
+
+# ── Rate Limiter (CWE-770 mitigation) ────────────────────────────────────
+
+class _RateLimiter:
+    """Token-bucket rate limiter to respect API limits.
+    
+    CWE-770: Allocation of Resources Without Limits or Throttling.
+    OWASP A05:2021: Security Misconfiguration.
+    
+    Prevents exceeding DEXScreener's 300 req/min limit and avoids
+    IP bans that would break the tool for all users.
+    """
+    
+    def __init__(self, max_requests: int, period_seconds: float):
+        self._max = max_requests
+        self._period = period_seconds
+        self._timestamps: list[float] = []
+    
+    async def acquire(self) -> None:
+        """Wait until a request slot is available."""
+        now = time.monotonic()
+        # Purge timestamps outside the current window
+        self._timestamps = [t for t in self._timestamps if now - t < self._period]
+        if len(self._timestamps) >= self._max:
+            # Wait until the oldest request expires
+            sleep_time = self._period - (now - self._timestamps[0]) + 0.1
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+        self._timestamps.append(time.monotonic())
+
+
+# Shared rate limiters (module-level singletons)
+_dexscreener_limiter = _RateLimiter(max_requests=250, period_seconds=60)  # 250/min (safety margin under 300)
+_rpc_limiter = _RateLimiter(max_requests=150, period_seconds=60)          # 150/min
 
 class DexScreenerClient:
     """Official DEXScreener API client."""
@@ -45,7 +80,8 @@ class DexScreenerClient:
                 return await self._auto_detect_pool(pool_address)
 
         except Exception as e:
-            print(f"❌ Error fetching pool: {e}")
+            # CWE-209: sanitize error — do not expose internal exception details
+            print(f"❌ Pool data fetch failed. Check the address and try again.")
             return None
 
     async def _search_specific_network(
@@ -91,8 +127,9 @@ class DexScreenerClient:
     async def _try_network(
         self, client: httpx.AsyncClient, network: str, url: str, address: str
     ) -> Optional[Dict[str, Any]]:
-        """Try fetching from a specific network."""
+        """Try fetching from a specific network (rate-limited)."""
         try:
+            await _dexscreener_limiter.acquire()
             response = await client.get(url)
             if response.status_code == 200:
                 data = response.json()
@@ -179,7 +216,8 @@ class DexScreenerClient:
             return None
 
         except Exception as e:
-            print(f"❌ Error: {e}")
+            # CWE-209: generic error message
+            print(f"❌ Network request failed. Please try again.")
             return None
 
     def _extract_pool_info(self, pair_data: Dict) -> Dict[str, Any]:

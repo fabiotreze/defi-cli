@@ -642,7 +642,8 @@ class PositionReader:
             }
 
         except Exception as e:
-            print(f"  ⚠️  Fee computation fallback (tokensOwed only): {e}")
+            # CWE-209: do not expose fee computation internals
+            print("  ⚠️  Fee computation fallback (using tokensOwed approximation)")
             fees0 = pos.get("tokensOwed0", 0) / (10**decimals0)
             fees1 = pos.get("tokensOwed1", 0) / (10**decimals1)
             return {"fees0": fees0, "fees1": fees1}

@@ -394,7 +394,7 @@ class PositionIndexer:
                         return summary
                     except Exception as e:
                         if not progress:
-                            print(f"     #{tid} — ❌ Error: {e}")
+                            print(f"     #{tid} — ❌ Position read failed")
                         return None
 
                 summaries = await asyncio.gather(*[_read(tid) for tid in token_ids])
@@ -408,10 +408,10 @@ class PositionIndexer:
             except Exception as e:
                 if progress:
                     progress.advance(
-                        dex_icon, dex_name, self.network, error=str(e)[:50]
+                        dex_icon, dex_name, self.network, error="scan failed"
                     )
                 else:
-                    print(f"     ❌ {dex_name} scan failed: {e}")
+                    print(f"     ❌ {dex_name} scan failed")
 
             return positions
 
@@ -424,7 +424,7 @@ class PositionIndexer:
             if isinstance(result, list):
                 all_positions.extend(result)
             elif isinstance(result, Exception):
-                print(f"     ❌ DEX scan error: {result}")
+                print(f"     ❌ DEX scan encountered an error")
 
         # Sort: active positions first, then by token_id descending
         all_positions.sort(key=lambda p: (-int(p["is_active"]), -p["token_id"]))
@@ -449,7 +449,7 @@ async def _main(
         print(f"  {get_dex_display_name(dex_slug)} Positions — {network.title()}")
     else:
         print(f"  All V3-Compatible Positions — {network.title()}")
-    print(f"  👛 Wallet: {wallet}")
+    print(f"  👛 Wallet: {wallet[:6]}…{wallet[-4:]}")
     print(f"{'=' * 65}")
 
     if not positions:
