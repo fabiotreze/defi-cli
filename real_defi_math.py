@@ -285,7 +285,7 @@ class UniswapV3Math:
         """
         Convert a tick index back to a price.
         Formula (Whitepaper §6.1): p(i) = 1.0001^i
-        
+
         CWE-682 mitigation: validates tick is within Uniswap V3 bounds
         [-887272, +887272] to prevent floating-point overflow.
         """

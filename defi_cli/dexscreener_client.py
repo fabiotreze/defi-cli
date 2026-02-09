@@ -19,21 +19,22 @@ from defi_cli.central_config import config
 
 # ── Rate Limiter (CWE-770 mitigation) ────────────────────────────────────
 
+
 class _RateLimiter:
     """Token-bucket rate limiter to respect API limits.
-    
+
     CWE-770: Allocation of Resources Without Limits or Throttling.
     OWASP A05:2021: Security Misconfiguration.
-    
+
     Prevents exceeding DEXScreener's 300 req/min limit and avoids
     IP bans that would break the tool for all users.
     """
-    
+
     def __init__(self, max_requests: int, period_seconds: float):
         self._max = max_requests
         self._period = period_seconds
         self._timestamps: list[float] = []
-    
+
     async def acquire(self) -> None:
         """Wait until a request slot is available."""
         now = time.monotonic()
@@ -48,8 +49,11 @@ class _RateLimiter:
 
 
 # Shared rate limiters (module-level singletons)
-_dexscreener_limiter = _RateLimiter(max_requests=250, period_seconds=60)  # 250/min (safety margin under 300)
-_rpc_limiter = _RateLimiter(max_requests=150, period_seconds=60)          # 150/min
+_dexscreener_limiter = _RateLimiter(
+    max_requests=250, period_seconds=60
+)  # 250/min (safety margin under 300)
+_rpc_limiter = _RateLimiter(max_requests=150, period_seconds=60)  # 150/min
+
 
 class DexScreenerClient:
     """Official DEXScreener API client."""
@@ -79,9 +83,9 @@ class DexScreenerClient:
                 # AUTO-DETECT: search across all priority networks
                 return await self._auto_detect_pool(pool_address)
 
-        except Exception as e:
+        except Exception:
             # CWE-209: sanitize error — do not expose internal exception details
-            print(f"❌ Pool data fetch failed. Check the address and try again.")
+            print("❌ Pool data fetch failed. Check the address and try again.")
             return None
 
     async def _search_specific_network(
@@ -215,9 +219,9 @@ class DexScreenerClient:
             print("⏰ Timeout fetching pool data")
             return None
 
-        except Exception as e:
+        except Exception:
             # CWE-209: generic error message
-            print(f"❌ Network request failed. Please try again.")
+            print("❌ Network request failed. Please try again.")
             return None
 
     def _extract_pool_info(self, pair_data: Dict) -> Dict[str, Any]:

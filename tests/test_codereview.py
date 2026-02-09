@@ -1610,6 +1610,7 @@ def _t30_cicd_security(results: CodeReviewResults):
 # T31 — CSP nonce-based script policy (CWE-79 / OWASP A03:2021)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t31_csp_nonce(results: CodeReviewResults):
     """T31: HTML reports use nonce-based CSP, not 'unsafe-inline' for scripts."""
     try:
@@ -1618,12 +1619,21 @@ def _t31_csp_nonce(results: CodeReviewResults):
         from datetime import datetime
 
         pos = PositionData(
-            token0_amount=1.0, token1_amount=2000.0,
-            token0_symbol="WETH", token1_symbol="USDC",
-            current_price=2000.0, range_min=1800.0, range_max=2200.0,
-            fee_tier=0.0005, total_value_usd=4000.0, fees_earned_usd=10.0,
-            volume_24h=100_000_000.0, total_value_locked_usd=50_000_000.0,
-            pool_address="0x" + "a" * 40, network="ethereum", protocol="uniswap_v3",
+            token0_amount=1.0,
+            token1_amount=2000.0,
+            token0_symbol="WETH",
+            token1_symbol="USDC",
+            current_price=2000.0,
+            range_min=1800.0,
+            range_max=2200.0,
+            fee_tier=0.0005,
+            total_value_usd=4000.0,
+            fees_earned_usd=10.0,
+            volume_24h=100_000_000.0,
+            total_value_locked_usd=50_000_000.0,
+            pool_address="0x" + "a" * 40,
+            network="ethereum",
+            protocol="uniswap_v3",
         )
         analysis = analyze_position(pos)
         analysis["consent_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1660,7 +1670,11 @@ def _t31_csp_nonce(results: CodeReviewResults):
             pass
 
         ok = len(findings) == 0
-        detail = "\n".join(findings) if findings else "Nonce CSP + frame-ancestors + headers OK"
+        detail = (
+            "\n".join(findings)
+            if findings
+            else "Nonce CSP + frame-ancestors + headers OK"
+        )
         results.add("T31", "CSP nonce policy (CWE-79)", ok, detail, "HIGH")
     except Exception as e:
         results.add("T31", "CSP nonce policy (CWE-79)", False, str(e)[:200], "HIGH")
@@ -1669,6 +1683,7 @@ def _t31_csp_nonce(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T32 — EIP-55 address validation (CWE-20)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t32_eip55_validation(results: CodeReviewResults):
     """T32: Address validation rejects mistyped mixed-case addresses."""
@@ -1703,12 +1718,15 @@ def _t32_eip55_validation(results: CodeReviewResults):
         detail = "\n".join(findings) if findings else "EIP-55 validation working"
         results.add("T32", "EIP-55 address validation (CWE-20)", ok, detail, "HIGH")
     except Exception as e:
-        results.add("T32", "EIP-55 address validation (CWE-20)", False, str(e)[:200], "HIGH")
+        results.add(
+            "T32", "EIP-55 address validation (CWE-20)", False, str(e)[:200], "HIGH"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T33 — Error message sanitization (CWE-209)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t33_error_sanitization(results: CodeReviewResults):
     """T33: Error messages do not leak internal paths or stack traces."""
@@ -1726,7 +1744,7 @@ def _t33_error_sanitization(results: CodeReviewResults):
             if stripped.startswith("#"):
                 continue
             # Look for raw exception interpolation in print/return/raise
-            if re.search(r'(print|return)\s*\(.*\{e\}', stripped):
+            if re.search(r"(print|return)\s*\(.*\{e\}", stripped):
                 # Allow sanitized errors
                 if "_sanitize_error" in stripped:
                     continue
@@ -1736,13 +1754,18 @@ def _t33_error_sanitization(results: CodeReviewResults):
                 findings.append(f"{f}:{i}: raw exception in output")
 
     ok = len(findings) == 0
-    detail = "\n".join(findings[:5]) if findings else "No raw exceptions in user-facing output"
+    detail = (
+        "\n".join(findings[:5])
+        if findings
+        else "No raw exceptions in user-facing output"
+    )
     results.add("T33", "Error sanitization (CWE-209)", ok, detail, "MEDIUM")
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T34 — Rate limiter present (CWE-770)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t34_rate_limiter(results: CodeReviewResults):
     """T34: Client-side rate limiter exists for external API calls."""
@@ -1752,16 +1775,23 @@ def _t34_rate_limiter(results: CodeReviewResults):
     if "_RateLimiter" not in dex_client:
         findings.append("dexscreener_client.py: no _RateLimiter class")
     if "acquire" not in dex_client:
-        findings.append("dexscreener_client.py: no acquire() call (rate limit not enforced)")
+        findings.append(
+            "dexscreener_client.py: no acquire() call (rate limit not enforced)"
+        )
 
     ok = len(findings) == 0
-    detail = "\n".join(findings) if findings else "Rate limiter present in DEXScreener client"
+    detail = (
+        "\n".join(findings)
+        if findings
+        else "Rate limiter present in DEXScreener client"
+    )
     results.add("T34", "Rate limiter (CWE-770)", ok, detail, "MEDIUM")
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T35 — Temp file cleanup on exit (CWE-459 / LGPD Art. 6 III)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t35_temp_cleanup(results: CodeReviewResults):
     """T35: Temp files registered + 0o600 perms + cleanup_reports() API."""
@@ -1777,19 +1807,28 @@ def _t35_temp_cleanup(results: CodeReviewResults):
     if "cleanup_reports" not in html_gen:
         findings.append("html_generator.py: no cleanup_reports() public API")
     if "0o600" not in html_gen:
-        findings.append("html_generator.py: temp files not created with 0o600 permissions")
+        findings.append(
+            "html_generator.py: temp files not created with 0o600 permissions"
+        )
     # Must NOT auto-delete via atexit (race condition with browser)
     if "atexit.register(_cleanup_temp_files)" in html_gen:
-        findings.append("html_generator.py: atexit auto-deletes files — browser race condition")
+        findings.append(
+            "html_generator.py: atexit auto-deletes files — browser race condition"
+        )
 
     ok = len(findings) == 0
-    detail = "\n".join(findings) if findings else "cleanup_reports() API + 0o600 perms + atexit reminder OK"
+    detail = (
+        "\n".join(findings)
+        if findings
+        else "cleanup_reports() API + 0o600 perms + atexit reminder OK"
+    )
     results.add("T35", "Temp file cleanup (CWE-459/LGPD)", ok, detail, "HIGH")
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # T36 — RPC URL masking in reports (CWE-200)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t36_rpc_url_masking(results: CodeReviewResults):
     """T36: Private RPC URLs with API keys are masked in HTML reports."""
@@ -1798,14 +1837,19 @@ def _t36_rpc_url_masking(results: CodeReviewResults):
 
         tests = [
             ("https://1rpc.io/arb", "https://1rpc.io/arb"),  # public — pass through
-            ("https://arb-mainnet.g.alchemy.com/v2/abc123def456ghi789", "https://arb-mainnet.g.alchemy.com/v2/***"),
+            (
+                "https://arb-mainnet.g.alchemy.com/v2/abc123def456ghi789",
+                "https://arb-mainnet.g.alchemy.com/v2/***",
+            ),
             ("", "N/A"),
         ]
         findings = []
         for input_url, expected in tests:
             result = _mask_rpc_url(input_url)
             if result != expected:
-                findings.append(f"_mask_rpc_url({input_url!r}) = {result!r}, expected {expected!r}")
+                findings.append(
+                    f"_mask_rpc_url({input_url!r}) = {result!r}, expected {expected!r}"
+                )
 
         ok = len(findings) == 0
         detail = "\n".join(findings) if findings else "RPC URL masking working"
@@ -1817,6 +1861,7 @@ def _t36_rpc_url_masking(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T37 — Wallet address masking in CLI output (LGPD Art. 6 III)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t37_wallet_masking(results: CodeReviewResults):
     """T37: Full wallet addresses are not printed to CLI output."""
@@ -1835,7 +1880,12 @@ def _t37_wallet_masking(results: CodeReviewResults):
             # Look for print statements with full wallet variable
             if "print" in stripped and "wallet}" in stripped:
                 # Allowed if masked
-                if "mask_address" in stripped or "[:6]" in stripped or "[:-4]" in stripped or "[-4:]" in stripped:
+                if (
+                    "mask_address" in stripped
+                    or "[:6]" in stripped
+                    or "[:-4]" in stripped
+                    or "[-4:]" in stripped
+                ):
                     continue
                 findings.append(f"{f}:{i}: possible unmasked wallet in output")
 
@@ -1853,6 +1903,7 @@ def _t37_wallet_masking(results: CodeReviewResults):
 # T38 — Tick bounds validation (CWE-682)
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _t38_tick_bounds(results: CodeReviewResults):
     """T38: Math functions handle extreme tick values without overflow."""
     from real_defi_math import UniswapV3Math
@@ -1864,7 +1915,7 @@ def _t38_tick_bounds(results: CodeReviewResults):
     for price in extreme_prices:
         try:
             tick = UniswapV3Math.price_to_tick(price)
-            recovered = UniswapV3Math.tick_to_price(tick)
+            _recovered = UniswapV3Math.tick_to_price(tick)
             # Tick must be within Uniswap V3 bounds
             if tick < -887272 or tick > 887272:
                 findings.append(f"price={price}: tick={tick} out of bounds")
@@ -1875,7 +1926,7 @@ def _t38_tick_bounds(results: CodeReviewResults):
     for tick in [-887272, 887272, -999999, 999999]:
         try:
             price = UniswapV3Math.tick_to_price(tick)
-            if price <= 0 or price == float('inf'):
+            if price <= 0 or price == float("inf"):
                 findings.append(f"tick={tick}: price={price} invalid")
         except OverflowError as e:
             findings.append(f"tick={tick}: overflow — {e}")
@@ -1888,6 +1939,7 @@ def _t38_tick_bounds(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T39 — html.escape() used instead of manual (CWE-79 defense-in-depth)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t39_html_escape_stdlib(results: CodeReviewResults):
     """T39: _safe() uses html.escape() from stdlib, not manual replacement."""
@@ -1907,6 +1959,7 @@ def _t39_html_escape_stdlib(results: CodeReviewResults):
 # ═══════════════════════════════════════════════════════════════════════
 # T40 — OWASP/CWE/CVE/CVSS summary audit
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _t40_owasp_cwe_audit(results: CodeReviewResults):
     """T40: Comprehensive OWASP/CWE audit — all critical CWEs enforced & CI-validated."""
@@ -1960,7 +2013,9 @@ def _t40_owasp_cwe_audit(results: CodeReviewResults):
             stripped = line.strip()
             if stripped.startswith("#"):
                 continue
-            if re.search(r"\beval\s*\(", stripped) or re.search(r"\bexec\s*\(", stripped):
+            if re.search(r"\beval\s*\(", stripped) or re.search(
+                r"\bexec\s*\(", stripped
+            ):
                 findings.append(f"CWE-94/95: {f}:{i} eval/exec usage")
 
     # No pickle/marshal (CWE-502)
@@ -1973,7 +2028,11 @@ def _t40_owasp_cwe_audit(results: CodeReviewResults):
             findings.append(f"CWE-502: {f} unsafe deserialization")
 
     ok = len(findings) == 0
-    detail = "\n".join(findings) if findings else "All CWEs enforced & CI-validated — OWASP A01-A10 compliant"
+    detail = (
+        "\n".join(findings)
+        if findings
+        else "All CWEs enforced & CI-validated — OWASP A01-A10 compliant"
+    )
     results.add("T40", "OWASP/CWE/CVE audit", ok, detail, "CRITICAL")
 
 
@@ -2155,36 +2214,155 @@ import pytest
 def cr():
     return CodeReviewResults()
 
-def test_cr_t06_syntax(cr): _t06_syntax(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T06")
-def test_cr_t07_imports(cr): _t07_imports(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T07")
-def test_cr_t08_version(cr): _t08_version(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T08")
-def test_cr_t09_secrets(cr): _t09_secrets(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T09")
-def test_cr_t11_tick_roundtrip(cr): _t11_tick_price_roundtrip(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T11")
-def test_cr_t12_il_symmetry(cr): _t12_il_symmetry(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T12")
-def test_cr_t13_capital_eff(cr): _t13_capital_efficiency(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T13")
-def test_cr_t14_fee_monotonic(cr): _t14_fee_apy_monotonic(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T14")
-def test_cr_t15_pipeline(cr): _t15_pipeline_schema(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T15")
-def test_cr_t19_disclaimers(cr): _t19_disclaimers(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T19")
-def test_cr_t21_requirements(cr): _t21_requirements(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T21")
-def test_cr_t22_modularity(cr): _t22_modularity(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T22")
-def test_cr_t23_vulnerability(cr): _t23_vulnerability(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T23")
-def test_cr_t24_file_integrity(cr): _t24_file_integrity(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T24")
-def test_cr_t25_lgpd(cr): _t25_lgpd_compliance(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T25")
-def test_cr_t26_cvm(cr): _t26_cvm_disclaimer(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T26")
-def test_cr_t27_tracking(cr): _t27_no_tracking(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T27")
-def test_cr_t28_azure_iac(cr): _t28_azure_iac(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T28")
-def test_cr_t29_docker(cr): _t29_docker_security(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T29")
-def test_cr_t30_cicd(cr): _t30_cicd_security(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T30")
-def test_cr_t31_csp_nonce(cr): _t31_csp_nonce(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T31")
-def test_cr_t32_eip55(cr): _t32_eip55_validation(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T32")
-def test_cr_t33_error_sanitize(cr): _t33_error_sanitization(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T33")
-def test_cr_t34_rate_limiter(cr): _t34_rate_limiter(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T34")
-def test_cr_t35_temp_cleanup(cr): _t35_temp_cleanup(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T35")
-def test_cr_t36_rpc_masking(cr): _t36_rpc_url_masking(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T36")
-def test_cr_t37_wallet_masking(cr): _t37_wallet_masking(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T37")
-def test_cr_t38_tick_bounds(cr): _t38_tick_bounds(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T38")
-def test_cr_t39_html_escape(cr): _t39_html_escape_stdlib(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T39")
-def test_cr_t40_owasp_audit(cr): _t40_owasp_cwe_audit(cr); assert all(r["passed"] for r in cr.results if r["id"] == "T40")
+
+def test_cr_t06_syntax(cr):
+    _t06_syntax(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T06")
+
+
+def test_cr_t07_imports(cr):
+    _t07_imports(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T07")
+
+
+def test_cr_t08_version(cr):
+    _t08_version(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T08")
+
+
+def test_cr_t09_secrets(cr):
+    _t09_secrets(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T09")
+
+
+def test_cr_t11_tick_roundtrip(cr):
+    _t11_tick_price_roundtrip(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T11")
+
+
+def test_cr_t12_il_symmetry(cr):
+    _t12_il_symmetry(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T12")
+
+
+def test_cr_t13_capital_eff(cr):
+    _t13_capital_efficiency(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T13")
+
+
+def test_cr_t14_fee_monotonic(cr):
+    _t14_fee_apy_monotonic(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T14")
+
+
+def test_cr_t15_pipeline(cr):
+    _t15_pipeline_schema(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T15")
+
+
+def test_cr_t19_disclaimers(cr):
+    _t19_disclaimers(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T19")
+
+
+def test_cr_t21_requirements(cr):
+    _t21_requirements(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T21")
+
+
+def test_cr_t22_modularity(cr):
+    _t22_modularity(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T22")
+
+
+def test_cr_t23_vulnerability(cr):
+    _t23_vulnerability(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T23")
+
+
+def test_cr_t24_file_integrity(cr):
+    _t24_file_integrity(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T24")
+
+
+def test_cr_t25_lgpd(cr):
+    _t25_lgpd_compliance(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T25")
+
+
+def test_cr_t26_cvm(cr):
+    _t26_cvm_disclaimer(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T26")
+
+
+def test_cr_t27_tracking(cr):
+    _t27_no_tracking(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T27")
+
+
+def test_cr_t28_azure_iac(cr):
+    _t28_azure_iac(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T28")
+
+
+def test_cr_t29_docker(cr):
+    _t29_docker_security(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T29")
+
+
+def test_cr_t30_cicd(cr):
+    _t30_cicd_security(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T30")
+
+
+def test_cr_t31_csp_nonce(cr):
+    _t31_csp_nonce(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T31")
+
+
+def test_cr_t32_eip55(cr):
+    _t32_eip55_validation(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T32")
+
+
+def test_cr_t33_error_sanitize(cr):
+    _t33_error_sanitization(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T33")
+
+
+def test_cr_t34_rate_limiter(cr):
+    _t34_rate_limiter(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T34")
+
+
+def test_cr_t35_temp_cleanup(cr):
+    _t35_temp_cleanup(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T35")
+
+
+def test_cr_t36_rpc_masking(cr):
+    _t36_rpc_url_masking(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T36")
+
+
+def test_cr_t37_wallet_masking(cr):
+    _t37_wallet_masking(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T37")
+
+
+def test_cr_t38_tick_bounds(cr):
+    _t38_tick_bounds(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T38")
+
+
+def test_cr_t39_html_escape(cr):
+    _t39_html_escape_stdlib(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T39")
+
+
+def test_cr_t40_owasp_audit(cr):
+    _t40_owasp_cwe_audit(cr)
+    assert all(r["passed"] for r in cr.results if r["id"] == "T40")
 
 
 # ── CLI entry point ─────────────────────────────────────────────────────

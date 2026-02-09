@@ -19,17 +19,19 @@ from datetime import datetime
 
 # ── EIP-55 Checksum (CWE-20 mitigation) ─────────────────────────────────
 
+
 def _eip55_checksum(address: str) -> str:
     """Compute the EIP-55 mixed-case checksum for an Ethereum address.
-    
+
     Reference: https://eips.ethereum.org/EIPS/eip-55
     CWE-20: Improper Input Validation — validates address integrity,
     preventing queries against mistyped addresses.
-    
+
     Uses keccak-256 via a pure-Python implementation to avoid
     adding a dependency (hashlib provides sha3_256 which is keccak).
     """
     import hashlib
+
     addr = address.lower().replace("0x", "")
     # Python's hashlib sha3_256 is NOT keccak-256; use the standard
     # approach: for a CLI with no crypto dep, we accept sha3_256 as a
@@ -50,7 +52,7 @@ def _eip55_checksum(address: str) -> str:
 
 def _validate_address(addr: str, kind: str = "address") -> bool:
     """Validate Ethereum address format and checksum.
-    
+
     CWE-20 mitigation: rejects malformed addresses before any network call.
     If the address is all-lowercase or all-uppercase, only format is checked
     (pre-EIP-55 addresses are common). Mixed-case addresses are validated
@@ -64,7 +66,7 @@ def _validate_address(addr: str, kind: str = "address") -> bool:
     if hex_part != hex_part.lower() and hex_part != hex_part.upper():
         expected = _eip55_checksum(addr)
         if addr != expected:
-            print(f"⚠️  Address checksum mismatch (possible typo).")
+            print("⚠️  Address checksum mismatch (possible typo).")
             print(f"   Expected: {expected}")
             print(f"   Received: {addr}")
             return False
@@ -73,7 +75,7 @@ def _validate_address(addr: str, kind: str = "address") -> bool:
 
 def _mask_address(addr: str) -> str:
     """Mask an Ethereum address for privacy-safe display.
-    
+
     LGPD Art. 6 III — data minimization: shows only prefix + suffix,
     reducing PII exposure in console output and logs.
     CWE-532 mitigation: prevents full addresses in log output.
@@ -85,7 +87,7 @@ def _mask_address(addr: str) -> str:
 
 def _sanitize_error(e: Exception) -> str:
     """Return a user-safe error message without leaking internal details.
-    
+
     CWE-209 mitigation: strips file paths, stack traces, and
     implementation details from error messages shown to users.
     """
@@ -104,11 +106,12 @@ def _sanitize_error(e: Exception) -> str:
             return generic_msg
     msg = str(e)
     # Remove file paths
-    msg = re.sub(r'(/[\w./-]+)+', '<path>', msg)
+    msg = re.sub(r"(/[\w./-]+)+", "<path>", msg)
     # Truncate to prevent very long error dumps
     if len(msg) > 120:
         msg = msg[:120] + "…"
     return msg
+
 
 try:
     from defi_cli.central_config import PROJECT_VERSION, PROJECT_NAME
@@ -168,7 +171,7 @@ def _require_consent() -> bool:
 
 def _prompt_address(kind: str = "pool") -> str | None:
     """Prompt the user for a 0x address when none is supplied.
-    
+
     Validates format (regex) and EIP-55 checksum for mixed-case inputs.
     CWE-20 mitigation.
     """
@@ -541,7 +544,7 @@ def cmd_report(
         analysis["audit_trail"] = onchain["audit_trail"]
         analysis["block_number"] = onchain.get("block_number", 0)
 
-    path = generate_position_report(analysis)
+    generate_position_report(analysis)
 
     print("\n✅ Report opened in your browser!")
     print("   📄 Report saved as temporary file (deleted on reboot).")
@@ -596,8 +599,8 @@ async def cmd_check() -> bool:
         print(f"\n  ▸ {pool['desc']}")
         try:
             result = await analyze_pool_real(pool["addr"])
-        except Exception as e:
-            print(f"    ❌ API request failed")
+        except Exception:
+            print("    ❌ API request failed")
             total_fail += 1
             continue
 
@@ -670,8 +673,8 @@ async def cmd_check() -> bool:
             else:
                 print(f"    ❌ missing {k}")
                 total_fail += 1
-    except Exception as e:
-        print(f"    ❌ Math engine validation failed")
+    except Exception:
+        print("    ❌ Math engine validation failed")
         total_fail += 1
 
     # DefiLlama Pool Scout check
@@ -687,8 +690,8 @@ async def cmd_check() -> bool:
         else:
             print("    ⚠️  DefiLlama returned 0 pools (API may be slow)")
             total_ok += 1  # non-blocking
-    except Exception as e:
-        print(f"    ⚠️  Scout skipped (service unavailable)")
+    except Exception:
+        print("    ⚠️  Scout skipped (service unavailable)")
         total_ok += 1  # non-blocking — DefiLlama is optional
 
     total = total_ok + total_fail

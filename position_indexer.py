@@ -392,7 +392,7 @@ class PositionIndexer:
                                 f"{summary['fee_label']} — {status}"
                             )
                         return summary
-                    except Exception as e:
+                    except Exception:
                         if not progress:
                             print(f"     #{tid} — ❌ Position read failed")
                         return None
@@ -405,7 +405,7 @@ class PositionIndexer:
                         dex_icon, dex_name, self.network, found=len(positions)
                     )
 
-            except Exception as e:
+            except Exception:
                 if progress:
                     progress.advance(
                         dex_icon, dex_name, self.network, error="scan failed"
@@ -424,7 +424,7 @@ class PositionIndexer:
             if isinstance(result, list):
                 all_positions.extend(result)
             elif isinstance(result, Exception):
-                print(f"     ❌ DEX scan encountered an error")
+                print("     ❌ DEX scan encountered an error")
 
         # Sort: active positions first, then by token_id descending
         all_positions.sort(key=lambda p: (-int(p["is_active"]), -p["token_id"]))
