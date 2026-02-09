@@ -6,7 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [1.1.1] — 2026-02-08
+## [1.1.1] — 2026-02-09
+
+### Security
+- **CWE-79**: Nonce-based Content-Security-Policy (`script-src 'nonce-…'`), `html.escape()` stdlib, `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`
+- **CWE-20**: EIP-55 address checksum validation (sha3-256)
+- **CWE-200**: RPC URL masking — API keys hidden in audit trail
+- **CWE-209**: Error message sanitization — maps internal exception types to generic messages
+- **CWE-377/459**: Temp files created with `0o600` permissions + cleanup registry (`cleanup_reports()` API, LGPD Art. 6 III)
+- **CWE-532**: Wallet address masking in console output (`0xAbCd…EfGh`)
+- **CWE-682**: Tick bounds clamping to `[-887272, +887272]` (Uniswap V3 limits)
+- **CWE-770**: Token-bucket rate limiter (250 req/min) for DEXScreener API
+- **10 new codereview tests** (T31–T40): CSP nonce, EIP-55, error sanitization, rate limiter, temp cleanup, RPC masking, wallet masking, tick bounds, html.escape, OWASP/CWE audit
+- Test count: 307 total (83 math + 194 unit + 30 codereview)
 
 ### Added
 - **CI/CD pipeline** (`.github/workflows/ci.yml`) — 3-job GitHub Actions workflow:

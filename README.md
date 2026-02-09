@@ -5,7 +5,7 @@
 <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-≥3.10-3776AB?logo=python&logoColor=white" alt="Python"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.1-blue" alt="Version"></a>
-<a href="SECURITY.md"><img src="https://img.shields.io/badge/security-T09%20%7C%20T23%20%7C%20T25-blueviolet" alt="Security"></a>
+<a href="SECURITY.md"><img src="https://img.shields.io/badge/security-T09%20%7C%20T23%20%7C%20T31--T40-blueviolet" alt="Security"></a>
 </p>
 
 **Educational** multi-DEX V3 concentrated-liquidity analyzer.  
@@ -228,13 +228,13 @@ pip install pytest
 python -m pytest tests/ -v --tb=short
 ```
 
-> `pytest` is a dev-only dependency. The command above runs all 292 tests.
+> `pytest` is a dev-only dependency. The command above runs all 307 tests.
 
 | Suite | Tests | Scope |
 |-------|-------|-------|
 | `test_math.py` | 83 | V3 math formulas, metrics, edge cases |
-| `test_units.py` | 195 | CLI commands, HTML output, mocked integration |
-| `test_codereview.py` | 14 | Code quality + 10 live network checks |
+| `test_units.py` | 194 | CLI commands, HTML output, mocked integration |
+| `test_codereview.py` | 30 | Code quality, security mitigations (T06–T40), live network checks |
 
 ---
 
