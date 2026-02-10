@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "defi-cli"
-version = "1.1.1"
-description = "Educational DeFi CLI — Multi-DEX V3 concentrated-liquidity analyzer"
+version = "1.1.2"
+description = "Educational DeFi CLI — Multi-DEX V3 concentrated-liquidity analyzer with global regulatory compliance"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "fabiotreze"}]
 keywords = ["defi", "uniswap", "liquidity", "cli", "dexscreener"]
 dependencies = [
-    "httpx>=0.25.0",
+    "httpx>=0.27.0,<0.29.0",
 ]
 
 [project.urls]

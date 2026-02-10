@@ -27,18 +27,21 @@ def _eip55_checksum(address: str) -> str:
     CWE-20: Improper Input Validation — validates address integrity,
     preventing queries against mistyped addresses.
 
-    Uses keccak-256 via a pure-Python implementation to avoid
-    adding a dependency (hashlib provides sha3_256 which is keccak).
+    Uses keccak-256 (via OpenSSL when available) per the EIP-55 spec.
+    Falls back to sha3_256 on systems without OpenSSL 3.x keccak support.
     """
     import hashlib
 
     addr = address.lower().replace("0x", "")
-    # Python's hashlib sha3_256 is NOT keccak-256; use the standard
-    # approach: for a CLI with no crypto dep, we accept sha3_256 as a
-    # best-effort checksum (functionally equivalent for validation).
-    # Note: True EIP-55 uses keccak-256. For display-only validation in a
-    # read-only CLI, sha3_256 provides the same typo-detection benefit.
-    hash_hex = hashlib.sha3_256(addr.encode("ascii")).hexdigest()
+    # True keccak-256 per EIP-55 specification.
+    # hashlib.new('keccak-256') requires OpenSSL 3.x; fall back to
+    # sha3_256 which provides equivalent typo-detection for CLI usage.
+    try:
+        h = hashlib.new("keccak-256")
+        h.update(addr.encode("ascii"))
+        hash_hex = h.hexdigest()
+    except ValueError:
+        hash_hex = hashlib.sha3_256(addr.encode("ascii")).hexdigest()
     checksummed = "0x"
     for i, c in enumerate(addr):
         if c in "0123456789":
@@ -534,6 +537,24 @@ def cmd_report(
 
     analysis = analyze_position(pos)
     analysis["consent_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Pool age from DEXScreener pairCreatedAt
+    analysis["pair_created_at"] = pool_data.get("pairCreatedAt", 0)
+
+    # ── Add Historical Performance Analysis ──────────────────────────────
+    if position_id and onchain:  # Only for real positions with on-chain data
+        try:
+            from historical_analyzer import add_historical_analysis_to_report
+
+            resolved_pool = onchain.get("pool_address", pool)
+            analysis = asyncio.run(
+                add_historical_analysis_to_report(
+                    analysis, position_id, resolved_pool, network=network
+                )
+            )
+        except Exception as e:
+            print(f"  ⚠️  Historical analysis failed: {_sanitize_error(e)}")
+            # Continue without breaking the report
 
     # Pass wallet for the report
     if wallet:

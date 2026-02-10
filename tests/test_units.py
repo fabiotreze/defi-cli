@@ -1255,9 +1255,30 @@ class TestGeneratePositionReport:
         data = self._make_data()
         path = generate_position_report(data, _open_browser=False)
         content = path.read_text()
-        # All 5 sessions should be present
-        assert "Session 1" in content or "Position Overview" in content
+        # All main sections should be present (tab-based UI)
+        assert (
+            "Your Position" in content
+            or "Position Overview" in content
+            or "tab-position" in content
+        )
         assert "Strategy" in content
+        # New enhanced report elements (tab-based UI)
+        assert "tab-nav" in content or "toc-list" in content, (
+            "Navigation (tab-nav or ToC) missing"
+        )
+        assert "Health Score" in content, "Health Score missing"
+        assert "Fee Efficiency" in content, "Fee Efficiency missing"
+        assert "Pool Age" in content, "Pool Age missing"
+        assert "Net APR" in content, "Net APR missing"
+        assert "Break-even" in content, "Break-even missing"
+        assert "copy-btn" in content, "Copy-to-clipboard JS missing"
+        assert "data-copy" in content, "Copy data-copy handler missing"
+        assert "Current Market Price" in content, "Market price in strategies missing"
+        # Export / print functionality
+        assert "export-bar" in content, "Export bar missing"
+        assert "toggleExportMode" in content, "Export toggle JS missing"
+        assert "export-mode" in content, "Export mode CSS class missing"
+        assert "window.print" in content, "Print button missing"
 
     def test_xss_prevention(self):
         data = self._make_data()
@@ -1268,3 +1289,392 @@ class TestGeneratePositionReport:
         assert "&lt;script&gt;alert" in content
         # The escaped version appears where the token symbol is shown
         assert "&lt;script&gt;" in content
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 11. Regression tests for session changes (EASM fixes, alignment, etc.)
+# ═══════════════════════════════════════════════════════════════════════════
+
+from defi_cli.commands import _eip55_checksum, _validate_address
+from defi_cli.html_styles import _validate_css_color
+from defi_cli.rpc_helpers import RPC_URLS
+
+
+class TestEIP55Keccak256:
+    """EASM-001: Verify EIP-55 uses keccak-256, not sha3-256."""
+
+    def test_known_reference_vector(self):
+        """EIP-55 canonical test vector — Vitalik's address.
+
+        The keccak-256 hash of the lowercase hex produces specific
+        case patterns that differ from sha3-256.
+        Reference: https://eips.ethereum.org/EIPS/eip-55#test-cases
+        """
+        # EIP-55 official test cases (all-lowercase input → mixed-case checksum)
+        test_vectors = [
+            ("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",),
+            ("0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",),
+            ("0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB",),
+            ("0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb",),
+        ]
+        for (expected,) in test_vectors:
+            result = _eip55_checksum(expected.lower())
+            assert result == expected, (
+                f"EIP-55 checksum mismatch (wrong hash algo?):\n"
+                f"  input:    {expected.lower()}\n"
+                f"  expected: {expected}\n"
+                f"  got:      {result}"
+            )
+
+    def test_all_lowercase_passthrough(self):
+        """All-lowercase address should produce valid checksum."""
+        addr = "0x" + "a" * 40
+        result = _eip55_checksum(addr)
+        assert result.startswith("0x")
+        assert len(result) == 42
+
+    def test_validate_address_rejects_bad_checksum(self):
+        """Mixed-case with WRONG checksum should be rejected."""
+        # Correct: 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed
+        # Flip one letter case to make it invalid
+        bad = "0x5AAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+        result = _validate_address(bad, "test")
+        assert not result, "Should reject address with incorrect EIP-55 checksum"
+
+
+class TestCSSColorValidator:
+    """EASM-003: Verify _validate_css_color blocks injection."""
+
+    def test_valid_hex_colors(self):
+        assert _validate_css_color("#fff") == "#fff"
+        assert _validate_css_color("#f0fdf4") == "#f0fdf4"
+        assert _validate_css_color("#FF0000") == "#FF0000"
+        assert _validate_css_color("#aabbccdd") == "#aabbccdd"  # 8-char with alpha
+
+    def test_rejects_css_injection(self):
+        with pytest.raises(ValueError):
+            _validate_css_color("red; background:url(evil)")
+
+    def test_rejects_named_color(self):
+        with pytest.raises(ValueError):
+            _validate_css_color("red")
+
+    def test_rejects_expression(self):
+        with pytest.raises(ValueError):
+            _validate_css_color("expression(alert(1))")
+
+    def test_rejects_empty(self):
+        with pytest.raises(ValueError):
+            _validate_css_color("")
+
+    def test_rejects_url(self):
+        with pytest.raises(ValueError):
+            _validate_css_color("url(http://evil.com)")
+
+
+class TestRPCEndpoints:
+    """EASM-002: Verify all RPC endpoints use 1RPC.io privacy relay."""
+
+    def test_all_networks_use_1rpc(self):
+        for network, url in RPC_URLS.items():
+            assert "1rpc.io" in url, f"{network} RPC not using 1RPC.io: {url}"
+
+    def test_arbitrum_endpoint(self):
+        assert RPC_URLS["arbitrum"] == "https://1rpc.io/arb"
+
+    def test_all_six_networks_present(self):
+        expected = {"arbitrum", "ethereum", "polygon", "base", "optimism", "bsc"}
+        assert set(RPC_URLS.keys()) == expected
+
+    def test_all_endpoints_https(self):
+        for network, url in RPC_URLS.items():
+            assert url.startswith("https://"), f"{network} not HTTPS: {url}"
+
+
+class TestVerifyTLSExplicit:
+    """EASM-004: Verify httpx clients use explicit verify=True."""
+
+    def test_rpc_helpers_verify_true(self):
+        from pathlib import Path
+
+        src = Path(__file__).resolve().parent.parent / "defi_cli" / "rpc_helpers.py"
+        content = src.read_text()
+        assert "verify=True" in content, "rpc_helpers.py missing explicit verify=True"
+
+    def test_dexscreener_verify_true(self):
+        from pathlib import Path
+
+        src = (
+            Path(__file__).resolve().parent.parent
+            / "defi_cli"
+            / "dexscreener_client.py"
+        )
+        content = src.read_text()
+        assert "verify=True" in content, (
+            "dexscreener_client.py missing explicit verify=True"
+        )
+
+    def test_pool_scout_verify_true(self):
+        from pathlib import Path
+
+        src = Path(__file__).resolve().parent.parent / "pool_scout.py"
+        content = src.read_text()
+        assert "verify=True" in content, "pool_scout.py missing explicit verify=True"
+
+
+class TestDependencyBounds:
+    """EASM-005: Verify httpx dependency has tightened version bounds."""
+
+    def test_requirements_txt_httpx_bounds(self):
+        from pathlib import Path
+
+        req = Path(__file__).resolve().parent.parent / "requirements.txt"
+        content = req.read_text()
+        assert "httpx>=0.27.0" in content, (
+            "requirements.txt httpx lower bound not 0.27.0"
+        )
+        assert "<0.29.0" in content, "requirements.txt httpx upper bound not pinned"
+
+    def test_pyproject_toml_httpx_bounds(self):
+        from pathlib import Path
+
+        toml = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        content = toml.read_text()
+        assert "httpx>=0.27.0" in content, "pyproject.toml httpx lower bound not 0.27.0"
+
+
+class TestVersionConsistencyAll:
+    """Verify version strings across ALL files, not just pyproject↔central_config."""
+
+    def test_security_md_version(self):
+        from pathlib import Path
+        from defi_cli.central_config import PROJECT_VERSION
+
+        sec = Path(__file__).resolve().parent.parent / "SECURITY.md"
+        content = sec.read_text()
+        assert f"v{PROJECT_VERSION}" in content, (
+            f"SECURITY.md does not contain v{PROJECT_VERSION}"
+        )
+
+    def test_legal_disclaimers_version(self):
+        from defi_cli.central_config import PROJECT_VERSION
+
+        # The version in legal_disclaimers should match
+        from pathlib import Path
+
+        src = (
+            Path(__file__).resolve().parent.parent / "defi_cli" / "legal_disclaimers.py"
+        )
+        content = src.read_text()
+        assert PROJECT_VERSION in content, (
+            f"legal_disclaimers.py does not contain version {PROJECT_VERSION}"
+        )
+
+    def test_readme_httpx_version_aligned(self):
+        from pathlib import Path
+
+        readme = Path(__file__).resolve().parent.parent / "README.md"
+        content = readme.read_text()
+        # README should NOT reference old httpx version
+        assert ">= 0.25.0" not in content, "README still references old httpx 0.25.0"
+        assert "0.27.0" in content, "README missing httpx 0.27.0 reference"
+
+
+class TestFontStandardization:
+    """Verify html_generator.py uses CSS variables for font sizes, not hardcoded."""
+
+    def test_no_hardcoded_font_sizes_in_body(self):
+        """Ensure no regressions of hardcoded font-size in template strings."""
+        import re as _re
+        from pathlib import Path
+
+        src = Path(__file__).resolve().parent.parent / "html_generator.py"
+        content = src.read_text()
+        # Find font-size declarations that DON'T use var()
+        # Allow: font-size: var(--fs-sm), font-size: inherit
+        # Block: font-size: 14px, font-size: 0.85rem, font-size: 1.1em
+        # Exclude CSS variable definitions (lines with --fs-) and mobile breakpoint
+        lines = content.split("\n")
+        violations = []
+        in_mobile_breakpoint = False
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # Track @media blocks (mobile breakpoints use intentional hardcoded sizes)
+            if "@media" in stripped:
+                in_mobile_breakpoint = True
+            if in_mobile_breakpoint and stripped == "}":
+                in_mobile_breakpoint = False
+                continue
+            if in_mobile_breakpoint:
+                continue
+            # Skip CSS variable definitions and comments
+            if (
+                "--fs-" in stripped
+                or stripped.startswith("#")
+                or stripped.startswith("//")
+            ):
+                continue
+            # Look for hardcoded font-size with px/rem/em units
+            if _re.search(r"font-size:\s*\d+(\.\d+)?\s*(px|rem|em)\b", stripped):
+                # Allow CSS root definitions
+                if ":root" not in stripped and "var(" not in stripped:
+                    violations.append(f"Line {i}: {stripped[:80]}")
+        assert len(violations) == 0, (
+            f"Found {len(violations)} hardcoded font-size(s) in html_generator.py "
+            f"(should use var(--fs-*)):\n" + "\n".join(violations[:5])
+        )
+
+    def test_css_variables_defined(self):
+        """Verify the CSS typography scale is defined."""
+        css = build_css("#f0fdf4", "#bbf7d0", "#15803d")
+        for var in [
+            "--fs-xs",
+            "--fs-sm",
+            "--fs-base",
+            "--fs-lg",
+            "--fs-xl",
+            "--fs-2xl",
+        ]:
+            assert var in css, f"CSS variable {var} not defined in build_css()"
+
+
+class TestTabLabels:
+    """Verify tab button labels fit single-line (no overflows)."""
+
+    def test_legal_tab_label(self):
+        """The Legal tab button should use the full 'Legal Compliance' label."""
+        data = TestGeneratePositionReport()._make_data()
+        path = generate_position_report(data, _open_browser=False)
+        content = path.read_text()
+        assert "Legal Compliance</button>" in content, (
+            "Legal Compliance tab button label not found"
+        )
+
+    def test_all_seven_tabs_present(self):
+        data = TestGeneratePositionReport()._make_data()
+        path = generate_position_report(data, _open_browser=False)
+        content = path.read_text()
+        tab_ids = [
+            "position",
+            "pool",
+            "strategy",
+            "technical",
+            "history",
+            "audit",
+            "legal",
+        ]
+        for tid in tab_ids:
+            assert f"tab-{tid}" in content, f"Tab '{tid}' missing from report"
+
+
+class TestLegalDisclaimersContent:
+    """EASM-012: Verify disclaimers use correct security terminology."""
+
+    def test_no_e2e_encryption_claim(self):
+        """Should say 'TLS/HTTPS', not 'End-to-end encryption'."""
+        from pathlib import Path
+
+        src = (
+            Path(__file__).resolve().parent.parent / "defi_cli" / "legal_disclaimers.py"
+        )
+        content = src.read_text()
+        assert "End-to-end encryption" not in content, (
+            "legal_disclaimers.py still claims 'End-to-end encryption'"
+        )
+        assert "TLS" in content or "HTTPS" in content, (
+            "legal_disclaimers.py missing TLS/HTTPS security reference"
+        )
+
+
+# ── URL Allowlist Security Tests ────────────────────────────────────
+from html_generator import (
+    ALLOWED_URL_DOMAINS,
+    _is_allowed_url,
+    _safe_href,
+)
+
+
+class TestURLAllowlist:
+    """Verify the URL security allowlist blocks unauthorized domains."""
+
+    # ── _is_allowed_url ──
+
+    def test_allows_approved_domains(self):
+        assert _is_allowed_url("https://etherscan.io/tx/0x123")
+        assert _is_allowed_url("https://docs.uniswap.org/concepts/protocol/fees")
+        assert _is_allowed_url("https://app.uniswap.org/positions/v3/arbitrum/123")
+        assert _is_allowed_url("https://github.com/Uniswap/v3-core")
+        assert _is_allowed_url("https://dexscreener.com")
+        assert _is_allowed_url("https://revert.finance/#/account/0xabc")
+        assert _is_allowed_url("https://arbiscan.io/block/12345")
+        assert _is_allowed_url("https://yields.llama.fi/pools")
+        assert _is_allowed_url("https://arxiv.org/abs/2103.14769")
+
+    def test_blocks_unknown_domains(self):
+        assert not _is_allowed_url("https://evil-site.com/phish")
+        assert not _is_allowed_url("https://scam-defi.xyz/airdrop")
+        assert not _is_allowed_url("https://fake-etherscan.io/tx/0x")
+        assert not _is_allowed_url("https://dexscreener.com.evil.com/steal")
+        assert not _is_allowed_url("https://notuniswap.org/fake")
+
+    def test_blocks_http_cleartext(self):
+        assert not _is_allowed_url("http://etherscan.io/tx/0x123")
+        assert not _is_allowed_url("http://uniswap.org")
+
+    def test_blocks_javascript_protocol(self):
+        assert not _is_allowed_url("javascript:alert(1)")
+        assert not _is_allowed_url("data:text/html,<script>")
+
+    def test_allows_fragment_and_empty(self):
+        assert _is_allowed_url("#")
+        assert _is_allowed_url("#section-4")
+        assert _is_allowed_url("")
+
+    def test_allows_subdomains_of_approved(self):
+        assert _is_allowed_url("https://api.dexscreener.com/latest/dex/pairs")
+        assert _is_allowed_url("https://docs.dexscreener.com/api/reference")
+        assert _is_allowed_url("https://optimistic.etherscan.io/tx/0x")
+
+    # ── _safe_href ──
+
+    def test_safe_href_passes_allowed(self):
+        url = "https://etherscan.io/tx/0xabc"
+        assert _safe_href(url) == url
+
+    def test_safe_href_blocks_and_returns_hash(self):
+        assert _safe_href("https://evil.com/steal") == "#"
+        assert _safe_href("javascript:alert(1)") == "#"
+        assert _safe_href("http://uniswap.org") == "#"
+
+    # ── ALLOWED_URL_DOMAINS constant ──
+
+    def test_allowlist_is_frozen(self):
+        """Ensure domains can't be mutated at runtime."""
+        assert isinstance(ALLOWED_URL_DOMAINS, frozenset)
+
+    def test_allowlist_contains_essential_domains(self):
+        essentials = {
+            "uniswap.org",
+            "docs.uniswap.org",
+            "app.uniswap.org",
+            "github.com",
+            "etherscan.io",
+            "arbiscan.io",
+            "dexscreener.com",
+            "ethereum.org",
+            "revert.finance",
+        }
+        assert essentials.issubset(ALLOWED_URL_DOMAINS)
+
+    def test_all_report_hrefs_on_allowlist(self):
+        """Parse every <a href> from a real-ish report and verify all are on allowlist."""
+        import re as _re
+
+        data = TestGeneratePositionReport()._make_data()
+        path = generate_position_report(data, _open_browser=False)
+        content = path.read_text()
+
+        # Extract all href values
+        hrefs = _re.findall(r'href="([^"]*)"', content)
+        blocked = [u for u in hrefs if not _is_allowed_url(u)]
+        assert blocked == [], f"Report contains non-allowlisted URLs: {blocked}"

@@ -110,7 +110,7 @@ class DexScreenerClient:
             f"🌐 AUTO-DETECT: Searching {address[:12]}... across all major networks..."
         )
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout, verify=True) as client:
             # Search priority networks in parallel
             tasks = []
             for network, url in config.api.get_auto_detect_urls(address):
@@ -191,7 +191,7 @@ class DexScreenerClient:
     ) -> Optional[Dict[str, Any]]:
         """Fetch data from a specific URL."""
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with httpx.AsyncClient(timeout=self.timeout, verify=True) as client:
                 response = await client.get(url)
 
                 if response.status_code == 200:
@@ -283,6 +283,7 @@ class DexScreenerClient:
             "lastUpdated": datetime.now().isoformat(),
             "dataSource": "DEXScreener",
             "url": pair_data.get("url", ""),
+            "pairCreatedAt": pair_data.get("pairCreatedAt", 0),
         }
 
 

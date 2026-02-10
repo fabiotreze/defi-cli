@@ -228,7 +228,7 @@ async def eth_call(rpc_url: str, to: str, data: str, timeout: int = 20) -> str:
         "method": "eth_call",
         "params": [{"to": to, "data": data}, "latest"],
     }
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    async with httpx.AsyncClient(timeout=timeout, verify=True) as client:
         resp = await client.post(rpc_url, json=payload)
         result = resp.json()
         if "error" in result:
@@ -269,7 +269,7 @@ async def eth_call_batch(
             }
         )
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    async with httpx.AsyncClient(timeout=timeout, verify=True) as client:
         resp = await client.post(rpc_url, json=payloads)
         results = resp.json()
 
@@ -299,7 +299,7 @@ async def eth_block_number(rpc_url: str, timeout: int = 10) -> int:
         "method": "eth_blockNumber",
         "params": [],
     }
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    async with httpx.AsyncClient(timeout=timeout, verify=True) as client:
         resp = await client.post(rpc_url, json=payload)
         result = resp.json()
         if "error" in result:

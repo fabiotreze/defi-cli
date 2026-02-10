@@ -4,15 +4,30 @@
 <a href="https://github.com/fabiotreze/defi-cli/actions/workflows/ci.yml"><img src="https://github.com/fabiotreze/defi-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-≥3.10-3776AB?logo=python&logoColor=white" alt="Python"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-<a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.1-blue" alt="Version"></a>
+<a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.2-blue" alt="Version"></a>
 <a href="SECURITY.md"><img src="https://img.shields.io/badge/security-T09%20%7C%20T23%20%7C%20T31--T40-blueviolet" alt="Security"></a>
+<a href="COMPLIANCE.md"><img src="https://img.shields.io/badge/compliance-CVM%2FSEC%2FMiCA-brightgreen" alt="Compliance"></a>
 </p>
 
-**Educational** multi-DEX V3 concentrated-liquidity analyzer.  
+**Educational** multi-DEX V3 concentrated-liquidity analyzer with **global regulatory compliance**.  
 Supports **Uniswap V3** 🦄, **PancakeSwap V3** 🥞, and **SushiSwap V3** 🍣.  
-Reads real on-chain data, generates HTML reports, and performs risk analysis.
+Reads real on-chain data, generates HTML reports, and performs comprehensive risk analysis.
 
-> ⚠️ **Not financial advice.** DeFi = **HIGH RISK** including **total loss of capital**. Use at your own risk. DYOR.
+> ⚠️ **Not financial advice.** DeFi = **HIGH RISK** including **total loss of capital**. **🇧🇷 NÃO autorizada pela CVM**. **🇺🇸 Educational tool only**. **🇪🇺 Past performance ≠ future results**. Use at your own risk. DYOR.
+
+## 🛡️ **Global Regulatory Compliance**
+
+**Industry-leading compliance** across major jurisdictions:
+- **🇧🇷 Brasil**: CVM Art. 11 compliant, Lei 14.478/22 crypto asset warnings, LGPD privacy-by-design
+- **🇺🇸 United States**: SEC forward-looking statements, educational tool disclaimers, non-investment advice
+- **🇪🇺 European Union**: MiCA regulation compliant, past performance disclaimers, GDPR privacy protection
+- **🌍 International**: FATF/IOSCO standards, mathematical transparency, source code audit (344 tests)
+
+**Unique differentiators**:
+- ✅ **Source Code Transparency**: MIT License + 344 automated tests
+- ✅ **Multi-Source Validation**: On-chain + DEXScreener + DefiLlama cross-verification
+- ✅ **Regulatory Warnings**: Comprehensive disclaimers for APR snapshot bias, IL underestimation
+- ✅ **Privacy Protection**: Zero data collection, temporary reports, consent recording
 
 ---
 
@@ -44,6 +59,8 @@ pip install -r requirements.txt; pip install -e .
 
 ### `report` — Generate HTML Report
 
+📊 **Real Position Analysis** with multi-source validation and regulatory compliance
+
 ```bash
 python run.py report \
   --pool <POOL_ADDRESS> \
@@ -53,12 +70,22 @@ python run.py report \
   --dex <DEX>
 ```
 
+**Unique features:**
+- 🔍 **Auto-detection:** Pool + network detection from Position ID only
+- 🗂️ **Tab-based UI:** Modern interface with 7 organized sections for better UX
+- 📈 **Historical analysis:** PnL vs HODL comparison with real performance tracking
+- 🔐 **Consent required:** Explicit user agreement before report generation
+- 💾 **Temporary reports:** Opens in browser, auto-deleted (privacy-by-design)
+- 🔗 **Cross-validation:** Links to Revert, Zerion, DeBank for verification
+- ⛓️ **Multi-source data:** On-chain + DEXScreener + DefiLlama validation
+- 📋 **Audit trail:** Real transaction history for actual positions
+
 | Parameter | Required For | Without It |
 |-----------|-------------|------------|
 | `--pool` | Target pool | Required (or auto-detected from `--position`) |
-| `--position` | Real on-chain data + audit trail | Simulated data |
+| `--position` | Real on-chain data + audit trail | **Simulated data mode** |
 | `--wallet` | Cross-validation links (Revert, Zerion, DeBank) | Links won't work |
-| `--network` | Correct RPC + explorer links | Defaults to `arbitrum` |
+| `--network` | Correct RPC + explorer links | **Auto-detected** or defaults to `arbitrum` |
 | `--dex` | Non-Uniswap positions | Defaults to `uniswap_v3` |
 
 ### `list` — Scan Wallet for V3 Positions
@@ -75,9 +102,21 @@ python run.py pool --pool <POOL_ADDRESS>
 
 ### `scout` — Compare Pools for a Token Pair
 
+🔭 **Pool Discovery** via DefiLlama Yields API (20,000+ pools, free, no API key)
+
 ```bash
-python run.py scout <PAIR> --network <NETWORK> --dex <DEX> --sort <apy|tvl|volume|efficiency>
+python run.py scout <PAIR> --network <NETWORK> --dex <DEX> --sort <apy|tvl|volume|efficiency> --limit <N> --min-tvl <USD>
 ```
+
+**What it does:**
+- Searches **all major DEXes** for best pools (Uniswap V3, PancakeSwap V3, SushiSwap V3)
+- **Real APY data** from DefiLlama (includes fee rewards + incentives)
+- **Cross-chain comparison** across Ethereum, Arbitrum, Polygon, Base, Optimism, BSC
+- **Efficiency ranking** by Vol/TVL ratio (higher = more active trading)
+
+**Advanced options:**
+- `--limit 15` — Max results (default: 15)
+- `--min-tvl 50000` — Minimum TVL in USD (default: $50K)
 
 ### `check` · `info`
 
@@ -85,6 +124,36 @@ python run.py scout <PAIR> --network <NETWORK> --dex <DEX> --sort <apy|tvl|volum
 |---------|-------------|
 | `python run.py check` | Integration tests against live pools |
 | `python run.py info` | System info + supported DEXes |
+
+---
+
+## Report Modes
+
+### 🏃 **Quick Mode** (Auto-detection)
+```bash
+# Only Position ID needed → Auto-detects network + pool + DEX
+python run.py report --position 5260106
+
+# Specify network if auto-detection fails
+python run.py report --position 5260106 --network arbitrum
+```
+
+### 📊 **Full Mode** (Maximum accuracy)
+```bash
+# All parameters → Real on-chain data + audit trail + cross-validation
+python run.py report \
+  --pool 0x641C00A822e8b671738d32a431a4Fb6074E5c79d \
+  --position 5260106 \
+  --wallet 0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4 \
+  --network arbitrum \
+  --dex uniswap_v3
+```
+
+### 🎭 **Simulation Mode** (No position)
+```bash
+# Pool analysis only → Simulated position data
+python run.py report --pool 0x641C00A822e8b671738d32a431a4Fb6074E5c79d
+```
 
 ---
 
@@ -103,6 +172,10 @@ python run.py report \
 
 ```bash
 python run.py list 0x4819A678A5Ba46A5108765FE3db9Ab522543F3d4 --network arbitrum
+
+python run.py scout WETH/USDC --network arbitrum --sort efficiency --limit 10
+
+python run.py pool 0x641C00A822e8b671738d32a431a4Fb6074E5c79d
 ```
 
 ```bash
@@ -119,13 +192,31 @@ python run.py scout WETH/USDT --network arbitrum --sort apy --limit 5
 
 ## Parameters
 
-| Parameter | Values | Default |
-|-----------|--------|---------|
-| `--network` | `arbitrum` · `ethereum` · `polygon` · `base` · `optimism` · `bsc` | `arbitrum` |
-| `--dex` | `uniswap_v3` · `pancakeswap_v3` · `sushiswap_v3` | `uniswap_v3` |
-| `--sort` | `apy` · `tvl` · `volume` · `efficiency` | `apy` |
-| `--limit` | Integer | `15` |
-| `--min-tvl` | USD (e.g. `50000`) | `50000` |
+### **Core Parameters**
+
+| Parameter | Commands | Values | Default | Description |
+|-----------|----------|--------|---------|-------------|
+| `--network` | `list`, `report`, `scout` | `arbitrum` · `ethereum` · `polygon` · `base` · `optimism` · `bsc` | `arbitrum` | Blockchain network to scan |
+| `--dex` | `list`, `report`, `scout` | `uniswap_v3` · `pancakeswap_v3` · `sushiswap_v3` | `uniswap_v3` | DEX protocol to use |
+| `--pool` | `report`, `pool` | `0x...` (42 hex chars) | *(required)* | Pool contract address |
+| `--position` | `report` | Integer (e.g. `5260106`) | *(optional)* | Position NFT Token ID |
+| `--wallet` | `list`, `report` | `0x...` (42 hex chars) | *(optional)* | Wallet address for cross-validation |
+
+### **Scout-Specific Parameters**
+
+| Parameter | Description | Values | Default | Example |
+|-----------|-------------|--------|---------|---------|
+| `--sort` | Sort pools by metric | `apy` · `tvl` · `volume` · `efficiency` | `apy` | `--sort efficiency` |
+| `--limit` | Max results returned | Integer (1-100) | `15` | `--limit 10` |
+| `--min-tvl` | Minimum pool TVL filter | USD amount | `50000` | `--min-tvl 100000` |
+
+### **Auto-Detection Features**
+
+| Feature | Commands | Description |
+|---------|----------|-------------|
+| **Network auto-detect** | `report` | Scans all networks to find Position ID |
+| **Pool auto-detect** | `report` | Extracts pool address from Position NFT |
+| **DEX auto-detect** | `report` | Identifies DEX from contract address |
 
 ---
 
@@ -159,19 +250,22 @@ Pool data via [DEXScreener API](https://docs.dexscreener.com/api/reference) — 
 </p>
 
 <details>
-<summary><strong>View all report sections (6 more)</strong></summary>
+<summary><strong>View all report tabs (7 sections)</strong></summary>
 <br>
 
-| Section | Preview |
-|---------|---------|
-| Your Position | <a href="docs/screenshots/02_position.png"><img src="docs/screenshots/02_position.png" width="500"></a> |
-| Pool Stats | <a href="docs/screenshots/03_pool_stats.png"><img src="docs/screenshots/03_pool_stats.png" width="500"></a> |
-| Strategies & Risk | <a href="docs/screenshots/04_strategies.png"><img src="docs/screenshots/04_strategies.png" width="500"></a> |
-| Technical Details | <a href="docs/screenshots/05_technical.png"><img src="docs/screenshots/05_technical.png" width="500"></a> |
-| Audit Trail | <a href="docs/screenshots/06_audit_trail.png"><img src="docs/screenshots/06_audit_trail.png" width="500"></a> |
-| Legal Compliance | <a href="docs/screenshots/07_legal.png"><img src="docs/screenshots/07_legal.png" width="500"></a> |
+| Tab | Preview |
+|-----|---------|
+| 💼 Your Position | <a href="docs/screenshots/02_position.png"><img src="docs/screenshots/02_position.png" width="500"></a> |
+| 📈 Performance History | <a href="docs/screenshots/08_performance.png"><img src="docs/screenshots/08_performance.png" width="500"></a> |
+| 🏊 Pool Overview | <a href="docs/screenshots/03_pool_stats.png"><img src="docs/screenshots/03_pool_stats.png" width="500"></a> |
+| 🎯 Strategy & Risk | <a href="docs/screenshots/04_strategies.png"><img src="docs/screenshots/04_strategies.png" width="500"></a> |
+| 🔧 Technical Details | <a href="docs/screenshots/05_technical.png"><img src="docs/screenshots/05_technical.png" width="500"></a> |
+| 📝 Audit Trail | <a href="docs/screenshots/06_audit_trail.png"><img src="docs/screenshots/06_audit_trail.png" width="500"></a> |
+| ⚖️ Legal Compliance | <a href="docs/screenshots/07_legal.png"><img src="docs/screenshots/07_legal.png" width="500"></a> |
 
 </details>
+
+Reports feature a **modern tab-based interface** for easy navigation between sections. No more scrolling through long pages — jump directly to any analysis section with one click.
 
 Reports are **temporary by design** — opened in your browser, then discarded. Press **Ctrl+S** / **⌘+S** to save.
 
@@ -179,12 +273,12 @@ Reports are **temporary by design** — opened in your browser, then discarded. 
 
 ## Known Limitations
 
-| Limitation | Impact |
-|-----------|--------|
-| **IL not calculated** | Fee APR ≠ Total PnL — use [Revert.finance](https://revert.finance) for real PnL |
-| **24h snapshot** | Projections may differ 20–30% from actual averages |
-| **No historical data** | Cross-validate with [Revert](https://revert.finance), [Zerion](https://zerion.io), [DeBank](https://debank.com) |
-| **Mathematical examples** | Strategies are formulas, not investment recommendations |
+| Limitation | Impact | Status |
+|-----------|--------|--------|
+| **Historical data coverage** | Some pools may have limited historical data | ⚠️ API-dependent |
+| **24h snapshot** | Projections may differ 20–30% from actual averages | ⚠️ Inherent to DEX APIs |
+| **Gas cost analysis** | Fee APR ≠ Total PnL — use [Revert.finance](https://revert.finance) for gas tracking | 🔄 Planned feature |
+| **Mathematical examples** | Strategies are formulas, not investment recommendations | ⚠️ Educational tool |
 
 ---
 
@@ -228,13 +322,14 @@ pip install pytest
 python -m pytest tests/ -v --tb=short
 ```
 
-> `pytest` is a dev-only dependency. The command above runs all 307 tests.
+> `pytest` is a dev-only dependency. The command above runs all 344 tests.
 
 | Suite | Tests | Scope |
 |-------|-------|-------|
 | `test_math.py` | 83 | V3 math formulas, metrics, edge cases |
-| `test_units.py` | 194 | CLI commands, HTML output, mocked integration |
+| `test_units.py` | 231 | CLI commands, HTML output, EASM regression, mocked integration |
 | `test_codereview.py` | 30 | Code quality, security mitigations (T06–T40), live network checks |
+| **Total** | **344** | **Complete test coverage** |
 
 ---
 
@@ -243,7 +338,7 @@ python -m pytest tests/ -v --tb=short
 | Package | Version | Purpose |
 |---------|---------|---------|
 | Python | ≥ 3.10 | Runtime |
-| httpx | ≥ 0.25.0 | HTTP client (API + JSON-RPC) |
+| httpx | ≥ 0.27.0 | HTTP client (API + JSON-RPC) |
 | pytest | ≥ 8.0 | Testing (dev only) |
 
 | OS | Python | Status |

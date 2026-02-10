@@ -127,7 +127,7 @@ All blockchain reads are routed through [1RPC.io](https://1rpc.io), a TEE-attest
 - **Consent mechanism** — explicit "I agree" prompt before report generation
 - **Pseudonymous data** — wallet addresses are public on-chain data; tool does not link them to identity
 
-## Architecture (v1.1.1)
+## Architecture (v1.1.2)
 
 ```
 run.py                     CLI entry point (6 commands: list, pool, report, check, info, scout)

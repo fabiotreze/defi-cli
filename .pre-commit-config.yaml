@@ -16,7 +16,7 @@ repos:
     hooks:
       - id: ruff
         name: "🔍 ruff lint"
-        args: [check, --fix]
+        args: [--fix]
       - id: ruff-format
         name: "📐 ruff format"
 
@@ -24,7 +24,7 @@ repos:
   - repo: local
     hooks:
       - id: pytest
-        name: "🧪 pytest (307 tests)"
+        name: "🧪 pytest (344 tests)"
         entry: python3 -m pytest tests/ -q --tb=short -k "not network"
         language: system
         pass_filenames: false

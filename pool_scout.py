@@ -77,7 +77,7 @@ class PoolScout:
         ):
             return self._cache
 
-        async with httpx.AsyncClient(timeout=DEFILLAMA_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=DEFILLAMA_TIMEOUT, verify=True) as client:
             resp = await client.get(DEFILLAMA_YIELDS_URL)
             resp.raise_for_status()
             data = resp.json()

@@ -59,7 +59,7 @@ REGULATORY_COMPLIANCE = """
 🔒 DATA PROTECTION:
 • No private keys stored, transmitted, or accessed
 • Public blockchain data only - no personal financial information
-• End-to-end encryption for all external API communications
+• Transport Layer Security (TLS/HTTPS) for all external API communications
 • Audit trails maintained for transparency and compliance
 • Data retention limited to operational necessity
 
@@ -119,8 +119,8 @@ ALL decisions are YOUR RESPONSIBILITY — use at your own risk.
 • Community encouraged to fork and improve
 • Star us on GitHub: github.com/fabiotreze/defi-cli
 
-Last Updated: 2026-02-06
-Version: 1.1.1
+Last Updated: 2026-02-09
+Version: 1.1.2
 License: MIT (Software) / CC BY-SA 4.0 (Documentation)
 """
 
